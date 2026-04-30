@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
-  Cloud,
+  Check,
   CloudOff,
   Download,
   ExternalLink,
@@ -24,7 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +41,7 @@ import type {
   FormSettings,
   FormTheme,
 } from "@/types/form";
-import { formatRelative } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 
 interface BuilderShellProps {
   formId: string;
@@ -73,8 +72,6 @@ export function BuilderShell(props: BuilderShellProps) {
   const markClean = useBuilderStore((s) => s.markClean);
   const setTitle = useBuilderStore((s) => s.setTitle);
   const setDescription = useBuilderStore((s) => s.setDescription);
-  const updateSettings = useBuilderStore((s) => s.updateSettings);
-  const updateTheme = useBuilderStore((s) => s.updateTheme);
   const importSchema = useBuilderStore((s) => s.importSchema);
 
   const [shareOpen, setShareOpen] = React.useState(false);
@@ -190,19 +187,21 @@ export function BuilderShell(props: BuilderShellProps) {
     }
   };
 
-  const publicUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/f/${slug}`
-      : `/f/${slug}`;
+  const [origin, setOrigin] = React.useState("");
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+  const publicUrl = origin ? `${origin}/f/${slug}` : `/f/${slug}`;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-background px-4 py-2.5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-background">
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2 backdrop-blur">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-8 max-w-md border-transparent bg-transparent px-2 text-sm font-semibold shadow-none hover:border-input focus-visible:border-input"
+            className="h-8 max-w-md border-transparent bg-transparent px-2 text-sm font-medium tracking-tightish shadow-none focus-visible:border-input focus-visible:bg-background"
             placeholder="Untitled form"
           />
           <AutosaveIndicator
@@ -211,12 +210,12 @@ export function BuilderShell(props: BuilderShellProps) {
             isDirty={isDirty}
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             size="sm"
             variant="ghost"
             asChild
-            className="hidden sm:inline-flex"
+            className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
           >
             <a href={`/dashboard/forms/${props.formId}/responses`}>
               <Inbox className="h-3.5 w-3.5" />
@@ -227,7 +226,7 @@ export function BuilderShell(props: BuilderShellProps) {
             size="sm"
             variant="ghost"
             asChild
-            className="hidden sm:inline-flex"
+            className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
           >
             <a href={`/dashboard/forms/${props.formId}/analytics`}>
               <BarChart3 className="h-3.5 w-3.5" />
@@ -236,8 +235,9 @@ export function BuilderShell(props: BuilderShellProps) {
           </Button>
           <Button
             size="sm"
-            variant="outline"
+            variant="ghost"
             onClick={() => setSchemaOpen(true)}
+            className="text-muted-foreground hover:text-foreground"
           >
             <FileJson className="h-3.5 w-3.5" />
             Schema
@@ -245,7 +245,7 @@ export function BuilderShell(props: BuilderShellProps) {
           {status === "published" && (
             <Button
               size="sm"
-              variant="outline"
+              variant="subtle"
               onClick={() => setShareOpen(true)}
             >
               <ExternalLink className="h-3.5 w-3.5" />
@@ -279,57 +279,73 @@ export function BuilderShell(props: BuilderShellProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="design" className="flex flex-1 flex-col overflow-hidden">
-        <div className="border-b bg-background px-4">
-          <TabsList className="my-1.5">
+      <Tabs
+        defaultValue="design"
+        className="flex flex-1 flex-col overflow-hidden"
+      >
+        <div className="border-b border-border/60 bg-background px-4">
+          <TabsList className="my-1.5 bg-muted/50">
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
         </div>
+
         <TabsContent
           value="design"
-          className="m-0 grid flex-1 overflow-hidden lg:grid-cols-[260px_1fr_340px]"
+          className="m-0 grid flex-1 overflow-hidden lg:grid-cols-[240px_1fr_320px]"
         >
-          <aside className="hidden overflow-y-auto border-r bg-muted/20 p-4 scrollbar-thin lg:block">
-            <h3 className="mb-3 text-sm font-semibold">Add fields</h3>
+          {/* Left palette */}
+          <aside className="hidden overflow-y-auto border-r border-border/60 bg-subtle/40 px-3 py-4 scrollbar-thin lg:block">
+            <h3 className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              Add field
+            </h3>
             <FieldPalette />
           </aside>
-          <div className="overflow-y-auto p-6 scrollbar-thin">
-            <div className="mx-auto max-w-2xl space-y-4">
-              <div>
+
+          {/* Canvas */}
+          <div className="overflow-y-auto bg-muted/30 px-6 py-8 scrollbar-thin">
+            <div className="mx-auto max-w-2xl space-y-6">
+              <div className="space-y-1.5">
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="border-transparent bg-transparent px-0 text-2xl font-semibold shadow-none focus-visible:border-input focus-visible:px-3"
-                  placeholder="Form title"
+                  className="h-auto border-transparent bg-transparent px-0 py-0 text-2xl font-semibold tracking-tightish shadow-none focus-visible:bg-transparent focus-visible:ring-0"
+                  placeholder="Untitled form"
                 />
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="border-transparent bg-transparent px-0 shadow-none focus-visible:border-input focus-visible:px-3"
-                  rows={2}
-                  placeholder="Description (optional)"
+                  className="min-h-0 resize-none border-transparent bg-transparent px-0 py-0 text-sm leading-relaxed text-muted-foreground shadow-none focus-visible:bg-transparent focus-visible:ring-0"
+                  rows={1}
+                  placeholder="Add a description (optional)"
                 />
               </div>
-              <Separator />
               <BuilderCanvas />
               <div className="lg:hidden">
-                <h3 className="mb-3 mt-6 text-sm font-semibold">Add fields</h3>
-                <FieldPalette />
+                <h3 className="mb-2 mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  Add field
+                </h3>
+                <div className="rounded-xl border border-border/60 bg-background p-3">
+                  <FieldPalette />
+                </div>
               </div>
             </div>
           </div>
-          <aside className="hidden overflow-hidden border-l bg-muted/20 lg:block">
+
+          {/* Right inspector */}
+          <aside className="hidden overflow-hidden border-l border-border/60 bg-subtle/40 lg:block">
             <FieldEditorPanel />
           </aside>
         </TabsContent>
+
         <TabsContent value="preview" className="m-0 flex-1 overflow-hidden">
           <FormPreview />
         </TabsContent>
+
         <TabsContent
           value="settings"
-          className="m-0 flex-1 overflow-y-auto bg-muted/20 p-6 scrollbar-thin"
+          className="m-0 flex-1 overflow-y-auto bg-muted/30 px-6 py-8 scrollbar-thin"
         >
           <SettingsPanel />
         </TabsContent>
@@ -362,15 +378,15 @@ function AutosaveIndicator({
 }) {
   if (status === "saving") {
     return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 className="h-3 w-3 animate-spin" />
-        Saving…
+        Saving
       </span>
     );
   }
   if (status === "error") {
     return (
-      <span className="flex items-center gap-1 text-xs text-destructive">
+      <span className="flex items-center gap-1.5 text-xs text-destructive">
         <CloudOff className="h-3 w-3" />
         Save failed
       </span>
@@ -378,17 +394,17 @@ function AutosaveIndicator({
   }
   if (lastSavedAt && !isDirty) {
     return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Cloud className="h-3 w-3" />
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Check className="h-3 w-3 text-success" />
         Saved {formatRelative(lastSavedAt)}
       </span>
     );
   }
   if (isDirty) {
     return (
-      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-        <Cloud className="h-3 w-3" />
-        Pending changes
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Unsaved
       </span>
     );
   }
@@ -418,8 +434,8 @@ function ShareDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2">
-          <Input value={url} readOnly className="font-mono text-xs" />
-          <CopyButton value={url} />
+          <Input value={url} readOnly className="h-10 font-mono text-xs" />
+          <CopyButton value={url} size="icon" />
         </div>
         {published && (
           <Button asChild variant="outline" className="w-full">
@@ -499,7 +515,7 @@ function SchemaDialog({
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={16}
-          className="font-mono text-xs"
+          className="font-mono text-xs leading-relaxed"
         />
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={handleDownload}>
@@ -524,13 +540,10 @@ function SettingsPanel() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <section className="space-y-3 rounded-xl border bg-background p-5">
-        <div>
-          <h3 className="text-sm font-semibold">Form settings</h3>
-          <p className="text-xs text-muted-foreground">
-            Control how your form behaves.
-          </p>
-        </div>
+      <SectionCard
+        title="Form behavior"
+        description="Control how respondents move through your form."
+      >
         <SettingRow
           label="Multi-step form"
           description="Break the form into multiple pages."
@@ -560,7 +573,7 @@ function SettingsPanel() {
             }
           />
         </SettingRow>
-        <div className="space-y-1.5">
+        <div className="space-y-1.5 pt-2">
           <Label>Thank-you message</Label>
           <Textarea
             value={settings.thankYouMessage}
@@ -580,16 +593,13 @@ function SettingsPanel() {
             }
           />
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="space-y-3 rounded-xl border bg-background p-5">
-        <div>
-          <h3 className="text-sm font-semibold">Theme</h3>
-          <p className="text-xs text-muted-foreground">
-            Customize the look of your public form.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
+      <SectionCard
+        title="Appearance"
+        description="Customize how your public form looks."
+      >
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1.5">
             <Label>Primary color</Label>
             <div className="flex items-center gap-2">
@@ -599,13 +609,14 @@ function SettingsPanel() {
                 onChange={(e) =>
                   updateTheme({ primaryColor: e.target.value })
                 }
-                className="h-9 w-12 rounded-md border"
+                className="h-10 w-12 cursor-pointer rounded-md border border-input bg-background"
               />
               <Input
                 value={theme.primaryColor}
                 onChange={(e) =>
                   updateTheme({ primaryColor: e.target.value })
                 }
+                className="font-mono text-xs"
               />
             </div>
           </div>
@@ -618,19 +629,42 @@ function SettingsPanel() {
                 onChange={(e) =>
                   updateTheme({ backgroundColor: e.target.value })
                 }
-                className="h-9 w-12 rounded-md border"
+                className="h-10 w-12 cursor-pointer rounded-md border border-input bg-background"
               />
               <Input
                 value={theme.backgroundColor}
                 onChange={(e) =>
                   updateTheme({ backgroundColor: e.target.value })
                 }
+                className="font-mono text-xs"
               />
             </div>
           </div>
         </div>
-      </section>
+      </SectionCard>
     </div>
+  );
+}
+
+function SectionCard({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4 rounded-xl border border-border/70 bg-card p-6 shadow-xs">
+      <div className="space-y-0.5">
+        <h3 className="text-sm font-medium tracking-tightish">{title}</h3>
+        {description && (
+          <p className="text-xs text-muted-foreground">{description}</p>
+        )}
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
   );
 }
 
@@ -644,8 +678,12 @@ function SettingRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border p-3">
-      <div className="pr-4">
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-background px-3.5 py-2.5",
+      )}
+    >
+      <div className="min-w-0">
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted-foreground">{description}</div>
       </div>

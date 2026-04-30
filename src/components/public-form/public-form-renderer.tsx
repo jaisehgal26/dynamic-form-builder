@@ -4,7 +4,7 @@ import * as React from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  CheckCircle2,
+  Check,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -149,40 +149,39 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
   return (
     <div
       className={cn(
-        "rounded-2xl border bg-card p-6 shadow-sm sm:p-8",
-        "animate-fade-in",
+        "rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-9",
       )}
-      style={{
-        backgroundColor: form.theme.backgroundColor,
-      }}
+      style={{ backgroundColor: form.theme.backgroundColor }}
     >
-      <div className="mb-6">
-        {useMultiStep && form.settings.showProgressBar && (
-          <div className="mb-4">
-            <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-              <span>
-                Step {stepIndex + 1} of {stepKeys.length}
-              </span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} />
+      {useMultiStep && form.settings.showProgressBar && (
+        <div className="mb-6 space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground tabular-nums">
+            <span>
+              Step {stepIndex + 1} of {stepKeys.length}
+            </span>
+            <span>{progress}%</span>
           </div>
-        )}
-        {stepIndex === 0 && (
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              {form.title}
-            </h1>
-            {form.description && (
-              <p className="mt-2 text-sm text-muted-foreground">
-                {form.description}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+          <Progress value={progress} className="h-1" />
+        </div>
+      )}
 
-      <div className="space-y-6">
+      {stepIndex === 0 && (
+        <div className="mb-7 space-y-2">
+          <h1 className="text-balance text-2xl font-semibold tracking-tightish sm:text-3xl">
+            {form.title}
+          </h1>
+          {form.description && (
+            <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
+              {form.description}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div
+        key={currentStep}
+        className="space-y-6 animate-fade-in"
+      >
         {visibleFields.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             This step has no visible fields.
@@ -202,12 +201,17 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
       </div>
 
       {submitError && (
-        <p className="mt-4 text-sm text-red-600">{submitError}</p>
+        <p className="mt-4 text-sm text-destructive">{submitError}</p>
       )}
 
-      <div className="mt-8 flex items-center justify-between gap-3">
+      <div className="mt-8 flex items-center justify-between gap-3 pt-1">
         {useMultiStep && stepIndex > 0 ? (
-          <Button variant="ghost" onClick={handleBack} disabled={submitting}>
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            disabled={submitting}
+            className="text-muted-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
@@ -217,6 +221,7 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
         <Button
           onClick={handleNext}
           disabled={submitting || form.fields.length === 0}
+          size="lg"
           style={{
             backgroundColor: form.theme.primaryColor,
             color: "#fff",
@@ -246,15 +251,18 @@ function ThankYouScreen({
   primaryColor?: string;
 }) {
   return (
-    <div className="rounded-2xl border bg-card p-10 text-center shadow-sm animate-fade-in">
+    <div className="rounded-2xl border border-border/70 bg-card p-12 text-center shadow-sm animate-scale-in">
       <div
-        className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full"
-        style={{ backgroundColor: primaryColor ?? "#0a0a0a", color: "#fff" }}
+        className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full"
+        style={{
+          backgroundColor: primaryColor ?? "hsl(var(--primary))",
+          color: "#fff",
+        }}
       >
-        <CheckCircle2 className="h-6 w-6" />
+        <Check className="h-5 w-5" />
       </div>
-      <h2 className="text-xl font-semibold">Thank you!</h2>
-      <p className="mt-2 max-w-md text-sm text-muted-foreground mx-auto">
+      <h2 className="text-xl font-semibold tracking-tightish">Thanks!</h2>
+      <p className="mx-auto mt-2 max-w-md text-pretty text-sm leading-relaxed text-muted-foreground">
         {message}
       </p>
     </div>

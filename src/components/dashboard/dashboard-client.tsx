@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  Activity,
   BarChart3,
   Eye,
   FileText,
@@ -11,15 +12,14 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  Sparkles,
   Trash2,
   Copy as CopyIcon,
   ExternalLink,
   Pencil,
+  Inbox,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -33,7 +33,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CopyButton } from "@/components/ui/copy-button";
 import { CreateFormDialog } from "./create-form-dialog";
-import { formatRelative } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 
 interface FormRow {
   id: string;
@@ -119,79 +119,88 @@ export function DashboardClient({
   };
 
   return (
-    <div className="container py-8">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Forms</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Build, publish, and analyze your forms.
+        <div className="space-y-1.5">
+          <h1 className="text-2xl font-semibold tracking-tightish">Forms</h1>
+          <p className="text-sm text-muted-foreground">
+            Build, publish, and analyze the forms in your workspace.
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
+        <Button onClick={() => setCreateOpen(true)} size="default">
           <Plus className="h-4 w-4" />
           New form
         </Button>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={<FileText className="h-4 w-4" />}
-          label="Total forms"
-          value={stats.totalForms.toString()}
+      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          icon={<FileText className="h-3.5 w-3.5" />}
+          label="Forms"
+          value={stats.totalForms.toLocaleString()}
         />
-        <StatCard
-          icon={<Sparkles className="h-4 w-4" />}
-          label="Total responses"
+        <StatTile
+          icon={<Activity className="h-3.5 w-3.5" />}
+          label="Responses"
           value={stats.totalResponses.toLocaleString()}
         />
-        <StatCard
-          icon={<Eye className="h-4 w-4" />}
-          label="Total views"
+        <StatTile
+          icon={<Eye className="h-3.5 w-3.5" />}
+          label="Views"
           value={stats.totalViews.toLocaleString()}
         />
-        <StatCard
-          icon={<BarChart3 className="h-4 w-4" />}
-          label="Conversion rate"
+        <StatTile
+          icon={<BarChart3 className="h-3.5 w-3.5" />}
+          label="Conversion"
           value={`${stats.conversionRate}%`}
+          accent
         />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
-          <CardTitle className="text-base">All forms</CardTitle>
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-medium tracking-tightish">All forms</h2>
+            <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+              {filtered.length}
+            </span>
+          </div>
           <div className="relative w-full max-w-xs">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search forms…"
-              className="pl-8"
+              className="h-9 pl-9"
             />
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
           {filtered.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={<FileText className="h-5 w-5" />}
-                title={forms.length === 0 ? "Create your first form" : "No matches"}
-                description={
-                  forms.length === 0
-                    ? "Forms you create will appear here. Get started in under a minute."
-                    : "No forms match that search. Try a different keyword."
-                }
-                action={
-                  forms.length === 0 ? (
-                    <Button onClick={() => setCreateOpen(true)}>
-                      <Plus className="h-4 w-4" />
-                      New form
-                    </Button>
-                  ) : null
-                }
-              />
-            </div>
+            <EmptyState
+              icon={<FileText className="h-5 w-5" />}
+              title={
+                forms.length === 0
+                  ? "No forms yet"
+                  : "No forms match that search"
+              }
+              description={
+                forms.length === 0
+                  ? "Create your first form to start collecting responses."
+                  : "Try a different keyword or clear the search."
+              }
+              action={
+                forms.length === 0 ? (
+                  <Button onClick={() => setCreateOpen(true)}>
+                    <Plus className="h-4 w-4" />
+                    Create form
+                  </Button>
+                ) : null
+              }
+            />
           ) : (
-            <div className="divide-y">
+            <ul className="divide-y divide-border/60">
               {filtered.map((form) => (
                 <FormRowItem
                   key={form.id}
@@ -201,17 +210,17 @@ export function DashboardClient({
                   onDelete={() => setDeleteId(form.id)}
                 />
               ))}
-            </div>
+            </ul>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       <CreateFormDialog open={createOpen} onOpenChange={setCreateOpen} />
       <ConfirmDialog
         open={!!deleteId}
         onOpenChange={(o) => !o && setDeleteId(null)}
-        title="Delete form?"
-        description="This will permanently delete the form and all its responses. This cannot be undone."
+        title="Delete this form?"
+        description="The form and all of its responses will be permanently removed. This cannot be undone."
         confirmText="Delete form"
         destructive
         loading={deleting}
@@ -221,27 +230,36 @@ export function DashboardClient({
   );
 }
 
-function StatCard({
+function StatTile({
   icon,
   label,
   value,
+  accent,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  accent?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{label}</span>
-          <span>{icon}</span>
-        </div>
-        <div className="mt-2 text-2xl font-semibold tracking-tight">
-          {value}
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className={cn(
+        "rounded-xl border border-border/60 bg-card px-4 py-3.5 transition-colors hover:bg-muted/40",
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <span className="text-muted-foreground/80">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <div
+        className={cn(
+          "mt-1.5 text-2xl font-semibold tabular-nums tracking-tightish",
+          accent && "text-primary",
+        )}
+      >
+        {value}
+      </div>
+    </div>
   );
 }
 
@@ -256,85 +274,132 @@ function FormRowItem({
   onDuplicate: () => void;
   onDelete: () => void;
 }) {
-  const publicUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/f/${form.slug}`
-      : `/f/${form.slug}`;
+  const [origin, setOrigin] = React.useState("");
+  React.useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+  const publicUrl = `${origin}/f/${form.slug}`;
 
   return (
-    <div className="flex flex-wrap items-center gap-3 px-5 py-4 transition-colors hover:bg-muted/30">
+    <li className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/70 text-muted-foreground">
+        <FileText className="h-4 w-4" />
+      </div>
+
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/dashboard/forms/${form.id}/builder`}
-            className="truncate text-sm font-semibold hover:underline"
+            className="truncate text-sm font-medium tracking-tightish hover:text-foreground/90"
           >
             {form.title}
           </Link>
           <StatusBadge status={form.status} />
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
           <span>Updated {formatRelative(form.updatedAt)}</span>
-          <span className="hidden sm:inline">·</span>
-          <span>{form.responseCount} responses</span>
-          <span className="hidden sm:inline">·</span>
-          <span>{form.viewCount} views</span>
+          <span aria-hidden className="text-muted-foreground/40">·</span>
+          <span className="tabular-nums">
+            {form.responseCount.toLocaleString()} response
+            {form.responseCount === 1 ? "" : "s"}
+          </span>
+          <span aria-hidden className="text-muted-foreground/40">·</span>
+          <span className="tabular-nums">
+            {form.viewCount.toLocaleString()} view
+            {form.viewCount === 1 ? "" : "s"}
+          </span>
         </div>
       </div>
-      <div className="flex items-center gap-1">
-        {form.status === "published" && (
+
+      <div className="hidden items-center gap-1 sm:flex">
+        {form.status === "published" && origin && (
           <CopyButton value={publicUrl} variant="ghost" size="icon-sm" />
         )}
-        <Button asChild size="sm" variant="ghost">
-          <Link href={`/dashboard/forms/${form.id}/responses`}>Responses</Link>
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Link href={`/dashboard/forms/${form.id}/responses`}>
+            <Inbox className="h-3.5 w-3.5" />
+            Responses
+          </Link>
         </Button>
-        <Button asChild size="sm" variant="ghost">
-          <Link href={`/dashboard/forms/${form.id}/analytics`}>Analytics</Link>
+        <Button
+          asChild
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <Link href={`/dashboard/forms/${form.id}/analytics`}>
+            <BarChart3 className="h-3.5 w-3.5" />
+            Analytics
+          </Link>
         </Button>
-        <Button asChild size="sm" variant="outline">
+        <Button asChild size="sm" variant="subtle">
           <Link href={`/dashboard/forms/${form.id}/builder`}>
             <Pencil className="h-3.5 w-3.5" />
             Edit
           </Link>
         </Button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="icon-sm" variant="ghost" disabled={pending}>
-              {pending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <MoreHorizontal className="h-4 w-4" />
-              )}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem onClick={onDuplicate}>
-              <CopyIcon className="h-4 w-4" />
-              Duplicate
-            </DropdownMenuItem>
-            {form.status === "published" && (
-              <DropdownMenuItem asChild>
-                <a
-                  href={`/f/${form.slug}`}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open public form
-                </a>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={onDelete}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
       </div>
-    </div>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon-sm" variant="ghost" disabled={pending}>
+            {pending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <MoreHorizontal className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={6} className="w-48">
+          <DropdownMenuItem asChild className="sm:hidden">
+            <Link href={`/dashboard/forms/${form.id}/builder`}>
+              <Pencil className="h-3.5 w-3.5" />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="sm:hidden">
+            <Link href={`/dashboard/forms/${form.id}/responses`}>
+              <Inbox className="h-3.5 w-3.5" />
+              Responses
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild className="sm:hidden">
+            <Link href={`/dashboard/forms/${form.id}/analytics`}>
+              <BarChart3 className="h-3.5 w-3.5" />
+              Analytics
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={onDuplicate}>
+            <CopyIcon className="h-3.5 w-3.5" />
+            Duplicate
+          </DropdownMenuItem>
+          {form.status === "published" && (
+            <DropdownMenuItem asChild>
+              <a
+                href={`/f/${form.slug}`}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Open public link
+              </a>
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </li>
   );
 }

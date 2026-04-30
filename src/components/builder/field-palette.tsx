@@ -1,13 +1,11 @@
 "use client";
 
-import { Plus } from "lucide-react";
 import { useBuilderStore } from "@/stores/use-builder-store";
 import {
   FIELD_TYPE_LABELS,
   type FieldType,
 } from "@/types/form";
 import { FieldIcon } from "./field-icons";
-import { cn } from "@/lib/utils";
 
 const GROUPS: { title: string; types: FieldType[] }[] = [
   {
@@ -35,27 +33,23 @@ export function FieldPalette() {
     <div className="space-y-5">
       {GROUPS.map((group) => (
         <div key={group.title}>
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h4 className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
             {group.title}
           </h4>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-0.5">
             {group.types.map((type) => (
               <button
                 key={type}
                 type="button"
                 onClick={() => addField(type)}
-                className={cn(
-                  "group flex items-center gap-2 rounded-md border bg-background p-2 text-left text-xs transition-colors",
-                  "hover:border-primary/40 hover:bg-muted/50",
-                )}
+                className="group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground/80 transition-colors hover:bg-background hover:text-foreground"
               >
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-background text-muted-foreground ring-1 ring-border/60 transition-colors group-hover:text-primary group-hover:ring-primary/30">
                   <FieldIcon type={type} className="h-3.5 w-3.5" />
                 </span>
-                <span className="flex-1 truncate font-medium">
+                <span className="flex-1 truncate">
                   {FIELD_TYPE_LABELS[type]}
                 </span>
-                <Plus className="h-3.5 w-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
               </button>
             ))}
           </div>

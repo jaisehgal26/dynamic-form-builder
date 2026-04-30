@@ -6,15 +6,18 @@ export function Toaster() {
   return (
     <SonnerToaster
       position="bottom-right"
-      richColors
-      closeButton
+      closeButton={false}
+      offset={20}
       toastOptions={{
+        duration: 3500,
+        className: "!font-sans",
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
+            "group toast !rounded-lg !border !border-border !bg-popover !text-foreground !shadow-md",
+          title: "!text-sm !font-medium",
+          description: "!text-xs !text-muted-foreground",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "!bg-primary !text-primary-foreground !rounded-md !text-xs",
         },
       }}
     />

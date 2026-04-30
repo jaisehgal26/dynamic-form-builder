@@ -16,10 +16,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { CHOICE_FIELD_TYPES, type FieldType, FIELD_TYPE_LABELS } from "@/types/form";
 import { generateFieldId } from "@/lib/slug";
 import { LogicEditor } from "./logic-editor";
+import { FieldIcon } from "./field-icons";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export function FieldEditorPanel() {
@@ -32,11 +32,11 @@ export function FieldEditorPanel() {
 
   if (!field) {
     return (
-      <div className="p-4">
+      <div className="flex h-full items-center justify-center p-2">
         <EmptyState
           icon={<Sliders className="h-4 w-4" />}
           title="No field selected"
-          description="Click a field on the canvas to edit its settings, validation, and logic."
+          description="Click any field on the canvas to edit its label, validation, and conditional logic."
         />
       </div>
     );
@@ -49,17 +49,17 @@ export function FieldEditorPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b p-4">
-        <div className="text-xs text-muted-foreground">Editing</div>
-        <div className="mt-0.5 truncate text-sm font-semibold">
-          {field.label || "Untitled"}
-        </div>
-        <div className="mt-1 text-xs text-muted-foreground">
+      <div className="border-b border-border/60 px-4 py-3">
+        <div className="flex items-center gap-2 text-[11px] uppercase tracking-wider text-muted-foreground/70">
+          <FieldIcon type={field.type} className="h-3 w-3" />
           {FIELD_TYPE_LABELS[field.type]}
         </div>
+        <div className="mt-1 truncate text-sm font-medium tracking-tightish">
+          {field.label || "Untitled question"}
+        </div>
       </div>
-      <Tabs defaultValue="general" className="flex-1 overflow-hidden">
-        <div className="border-b px-4">
+      <Tabs defaultValue="general" className="flex flex-1 flex-col overflow-hidden">
+        <div className="border-b border-border/60 px-3 pt-2">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="general">General</TabsTrigger>
             <TabsTrigger value="validation" disabled={!isInput}>
@@ -68,7 +68,7 @@ export function FieldEditorPanel() {
             <TabsTrigger value="logic">Logic</TabsTrigger>
           </TabsList>
         </div>
-        <div className="overflow-y-auto p-4 scrollbar-thin">
+        <div className="flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
           <TabsContent value="general" className="mt-0 space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="field-label">Label</Label>
@@ -104,7 +104,7 @@ export function FieldEditorPanel() {
                     }
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="flex items-center justify-between gap-3 rounded-lg border border-border/60 bg-background px-3.5 py-2.5">
                   <div>
                     <Label
                       htmlFor="field-required"
@@ -113,7 +113,7 @@ export function FieldEditorPanel() {
                       Required
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      Respondents must answer this question.
+                      Respondents must answer.
                     </p>
                   </div>
                   <Switch
@@ -256,7 +256,6 @@ export function FieldEditorPanel() {
                     />
                   </div>
                 </div>
-                <Separator />
                 <div className="space-y-1.5">
                   <Label>Regex pattern</Label>
                   <Input
@@ -270,6 +269,7 @@ export function FieldEditorPanel() {
                         },
                       })
                     }
+                    className="font-mono text-xs"
                   />
                 </div>
               </>
@@ -361,11 +361,12 @@ function ChoiceOptionsEditor({
   return (
     <div className="space-y-2">
       <Label>Options</Label>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {options.map((opt, idx) => (
-          <div key={opt.id} className="flex items-center gap-2">
+          <div key={opt.id} className="flex items-center gap-1.5">
             <Input
               value={opt.label}
+              className="h-9"
               onChange={(e) => {
                 const next = [...options];
                 next[idx] = {
@@ -383,12 +384,11 @@ function ChoiceOptionsEditor({
             <Button
               size="icon-sm"
               variant="ghost"
-              onClick={() =>
-                update(options.filter((_, i) => i !== idx))
-              }
+              onClick={() => update(options.filter((_, i) => i !== idx))}
               aria-label="Remove option"
+              className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
             >
-              <Trash2 className="h-3.5 w-3.5 text-destructive" />
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         ))}
@@ -396,7 +396,8 @@ function ChoiceOptionsEditor({
       <Button
         type="button"
         size="sm"
-        variant="outline"
+        variant="ghost"
+        className="w-full justify-start text-muted-foreground hover:text-foreground"
         onClick={() =>
           update([
             ...options,

@@ -2,15 +2,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export default function FormLoading() {
   return (
-    <div className="container py-8">
-      <Skeleton className="h-8 w-48" />
-      <Skeleton className="mt-2 h-4 w-64" />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+    <div className="mx-auto w-full max-w-6xl px-6 py-10">
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-7 w-72" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 w-full" />
+          <Skeleton key={i} className="h-[88px] w-full rounded-xl" />
         ))}
       </div>
-      <Skeleton className="mt-6 h-72 w-full" />
+      <Skeleton className="mt-6 h-[280px] w-full rounded-xl" />
     </div>
   );
 }

@@ -67,35 +67,39 @@ export function LogicEditor({ field }: { field: FormFieldDef }) {
 
   if (otherFields.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Add at least one other input field before configuring logic.
+      <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+        Add another input field first to configure logic.
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">
-        Configure when this field should be shown or hidden based on other answers.
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Show, hide, or jump to a step based on previous answers.
       </p>
       {field.logic.length === 0 && (
-        <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-          No rules yet. Add one below.
+        <div className="rounded-lg border border-dashed border-border/70 bg-muted/30 p-6 text-center text-sm text-muted-foreground">
+          No rules yet.
         </div>
       )}
       {field.logic.map((rule) => {
         const op = OPERATORS.find((o) => o.value === rule.operator);
         return (
-          <div key={rule.id} className="space-y-2 rounded-lg border bg-muted/20 p-3">
-            <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+          <div
+            key={rule.id}
+            className="space-y-2 rounded-lg border border-border/60 bg-background p-3"
+          >
+            <div className="flex items-center justify-between text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
               <span>If</span>
               <Button
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => removeRule(rule.id)}
                 aria-label="Remove rule"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
-                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
             </div>
             <Select
@@ -137,7 +141,9 @@ export function LogicEditor({ field }: { field: FormFieldDef }) {
                 onChange={(e) => updateRule(rule.id, { value: e.target.value })}
               />
             )}
-            <Label className="block pt-1 text-xs text-muted-foreground">Then</Label>
+            <Label className="block pt-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+              Then
+            </Label>
             <Select
               value={rule.action}
               onValueChange={(v) =>
@@ -175,7 +181,12 @@ export function LogicEditor({ field }: { field: FormFieldDef }) {
           </div>
         );
       })}
-      <Button size="sm" variant="outline" onClick={addRule}>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={addRule}
+        className="w-full justify-start text-muted-foreground hover:text-foreground"
+      >
         <Plus className="h-3.5 w-3.5" />
         Add rule
       </Button>

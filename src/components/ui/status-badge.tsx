@@ -1,19 +1,26 @@
-import { Badge } from "./badge";
 import { cn } from "@/lib/utils";
 
 type Status = "draft" | "published" | "archived";
 
-const STATUS_CLASS: Record<Status, string> = {
-  draft: "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100",
-  published:
-    "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100",
-  archived: "bg-zinc-100 text-zinc-700 border-zinc-200 hover:bg-zinc-100",
-};
-
-const STATUS_LABEL: Record<Status, string> = {
-  draft: "Draft",
-  published: "Published",
-  archived: "Archived",
+const STATUS_STYLES: Record<
+  Status,
+  { dot: string; text: string; label: string }
+> = {
+  draft: {
+    dot: "bg-amber-500",
+    text: "text-amber-700 dark:text-amber-400",
+    label: "Draft",
+  },
+  published: {
+    dot: "bg-emerald-500",
+    text: "text-emerald-700 dark:text-emerald-400",
+    label: "Published",
+  },
+  archived: {
+    dot: "bg-zinc-400",
+    text: "text-muted-foreground",
+    label: "Archived",
+  },
 };
 
 export function StatusBadge({
@@ -23,24 +30,22 @@ export function StatusBadge({
   status: Status;
   className?: string;
 }) {
+  const s = STATUS_STYLES[status];
   return (
-    <Badge
-      variant="outline"
+    <span
       className={cn(
-        "rounded-full border px-2 py-0.5 text-xs font-medium",
-        STATUS_CLASS[status],
+        "inline-flex items-center gap-1.5 text-[11px] font-medium tabular-nums",
+        s.text,
         className,
       )}
     >
       <span
         className={cn(
-          "mr-1 inline-block h-1.5 w-1.5 rounded-full",
-          status === "draft" && "bg-amber-500",
-          status === "published" && "bg-emerald-500",
-          status === "archived" && "bg-zinc-500",
+          "inline-block h-1.5 w-1.5 rounded-full ring-2 ring-current/10",
+          s.dot,
         )}
       />
-      {STATUS_LABEL[status]}
-    </Badge>
+      {s.label}
+    </span>
   );
 }

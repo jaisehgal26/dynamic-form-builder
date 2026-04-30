@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface MetricCardProps {
@@ -7,6 +6,7 @@ interface MetricCardProps {
   hint?: string;
   icon?: React.ReactNode;
   className?: string;
+  accent?: boolean;
 }
 
 export function MetricCard({
@@ -15,21 +15,30 @@ export function MetricCard({
   hint,
   icon,
   className,
+  accent,
 }: MetricCardProps) {
   return (
-    <Card className={cn(className)}>
-      <CardContent className="p-5">
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{label}</span>
-          {icon && <span>{icon}</span>}
-        </div>
-        <div className="mt-2 text-2xl font-semibold tracking-tight">
-          {value}
-        </div>
-        {hint && (
-          <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+    <div
+      className={cn(
+        "rounded-xl border border-border/60 bg-card px-4 py-3.5 transition-colors hover:bg-muted/40",
+        className,
+      )}
+    >
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {icon && <span className="text-muted-foreground/80">{icon}</span>}
+        <span>{label}</span>
+      </div>
+      <div
+        className={cn(
+          "mt-1.5 text-2xl font-semibold tabular-nums tracking-tightish",
+          accent && "text-primary",
         )}
-      </CardContent>
-    </Card>
+      >
+        {value}
+      </div>
+      {hint && (
+        <div className="mt-0.5 text-[11px] text-muted-foreground">{hint}</div>
+      )}
+    </div>
   );
 }

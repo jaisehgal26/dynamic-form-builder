@@ -13,7 +13,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -84,30 +83,31 @@ export function ResponsesClient({
   };
 
   return (
-    <div className="container py-8">
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="mx-auto w-full max-w-6xl px-6 py-10">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+        <div className="space-y-1">
           <Link
             href="/dashboard"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
             <ArrowLeft className="h-3 w-3" /> Back to forms
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tightish">
             {formTitle}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {responses.length} response{responses.length === 1 ? "" : "s"}
+            {responses.length.toLocaleString()} response
+            {responses.length === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="ghost" size="sm">
             <Link href={`/dashboard/forms/${formId}/builder`}>
               <Pencil className="h-3.5 w-3.5" />
               Edit form
             </Link>
           </Button>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="ghost" size="sm">
             <Link href={`/dashboard/forms/${formId}/analytics`}>
               <BarChart3 className="h-3.5 w-3.5" />
               Analytics
@@ -116,13 +116,13 @@ export function ResponsesClient({
           <Button
             asChild
             size="sm"
-            disabled={responses.length === 0}
             variant={responses.length === 0 ? "outline" : "default"}
           >
             <a
               href={`/api/forms/${formId}/responses/export`}
               target="_blank"
               rel="noreferrer"
+              aria-disabled={responses.length === 0}
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
@@ -131,76 +131,75 @@ export function ResponsesClient({
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Responses</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {responses.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={<Inbox className="h-5 w-5" />}
-                title="No responses yet"
-                description="Once people submit your form, their answers will show up here."
-              />
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Submitted</th>
-                    {previewFields.map((f) => (
-                      <th key={f.id} className="px-4 py-2 text-left">
-                        {truncate(f.label, 30)}
-                      </th>
-                    ))}
-                    <th className="px-4 py-2 text-left">Completion</th>
-                    <th className="px-4 py-2 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y">
-                  {responses.map((r) => (
-                    <tr key={r.id} className="hover:bg-muted/30">
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                        {formatDateTime(r.submittedAt)}
-                      </td>
-                      {previewFields.map((f) => (
-                        <td
-                          key={f.id}
-                          className="px-4 py-3 align-top text-sm"
-                        >
-                          {renderAnswerPreview(r.answers[f.id])}
-                        </td>
-                      ))}
-                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                        {formatDuration(r.completionTimeSeconds ?? 0)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setOpen(r)}
-                        >
-                          View
-                        </Button>
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          onClick={() => setDeleteId(r.id)}
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                        </Button>
-                      </td>
-                    </tr>
+      <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
+        {responses.length === 0 ? (
+          <EmptyState
+            icon={<Inbox className="h-5 w-5" />}
+            title="No responses yet"
+            description="Once people submit your form, their answers will show up here."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40 text-xs text-muted-foreground">
+                  <th className="px-4 py-2.5 text-left font-medium">Submitted</th>
+                  {previewFields.map((f) => (
+                    <th
+                      key={f.id}
+                      className="px-4 py-2.5 text-left font-medium"
+                    >
+                      {truncate(f.label, 32)}
+                    </th>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <th className="px-4 py-2.5 text-left font-medium">Time</th>
+                  <th className="w-px px-4 py-2.5 text-right font-medium">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/50">
+                {responses.map((r) => (
+                  <tr
+                    key={r.id}
+                    className="group transition-colors hover:bg-muted/40"
+                  >
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                      {formatDateTime(r.submittedAt)}
+                    </td>
+                    {previewFields.map((f) => (
+                      <td key={f.id} className="px-4 py-3 align-top">
+                        {renderAnswerPreview(r.answers[f.id])}
+                      </td>
+                    ))}
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                      {formatDuration(r.completionTimeSeconds ?? 0)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setOpen(r)}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => setDeleteId(r.id)}
+                        aria-label="Delete response"
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="max-w-2xl">
@@ -209,39 +208,36 @@ export function ResponsesClient({
           </DialogHeader>
           {open && (
             <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 scrollbar-thin">
-              <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-                <div>
-                  <div className="font-medium text-foreground">Submitted</div>
-                  <div>{formatDateTime(open.submittedAt)}</div>
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">
-                    Completion
-                  </div>
-                  <div>
-                    {formatDuration(open.completionTimeSeconds ?? 0)}
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/40 p-3 text-xs">
+                <Meta label="Submitted" value={formatDateTime(open.submittedAt)} />
+                <Meta
+                  label="Completion"
+                  value={formatDuration(open.completionTimeSeconds ?? 0)}
+                />
                 {typeof open.metadata.device === "string" && (
-                  <div>
-                    <div className="font-medium text-foreground">Device</div>
-                    <div className="capitalize">{open.metadata.device as string}</div>
-                  </div>
+                  <Meta
+                    label="Device"
+                    value={(open.metadata.device as string) || "—"}
+                    capitalize
+                  />
                 )}
                 {typeof open.metadata.browser === "string" && (
-                  <div>
-                    <div className="font-medium text-foreground">Browser</div>
-                    <div>{open.metadata.browser as string}</div>
-                  </div>
+                  <Meta
+                    label="Browser"
+                    value={(open.metadata.browser as string) || "—"}
+                  />
                 )}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {inputFields.map((f) => (
-                  <div key={f.id} className="rounded-lg border bg-muted/20 p-3">
+                  <div
+                    key={f.id}
+                    className="rounded-lg border border-border/60 bg-card p-3"
+                  >
                     <div className="text-xs font-medium text-muted-foreground">
                       {f.label}
                     </div>
-                    <div className="mt-1 break-words text-sm">
+                    <div className="mt-1 break-words text-sm leading-relaxed">
                       {renderAnswerFull(open.answers[f.id])}
                     </div>
                   </div>
@@ -266,12 +262,39 @@ export function ResponsesClient({
   );
 }
 
+function Meta({
+  label,
+  value,
+  capitalize,
+}: {
+  label: string;
+  value: string;
+  capitalize?: boolean;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </div>
+      <div className={"mt-0.5 text-foreground" + (capitalize ? " capitalize" : "")}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
 function renderAnswerPreview(value: unknown): React.ReactNode {
   if (value === null || value === undefined || value === "") {
-    return <span className="text-muted-foreground">—</span>;
+    return <span className="text-muted-foreground/60">—</span>;
   }
-  if (Array.isArray(value)) return truncate(value.join(", "), 60);
-  return truncate(String(value), 60);
+  if (Array.isArray(value)) {
+    return (
+      <span className="line-clamp-1 text-sm">
+        {truncate(value.join(", "), 60)}
+      </span>
+    );
+  }
+  return <span className="line-clamp-1 text-sm">{truncate(String(value), 60)}</span>;
 }
 
 function renderAnswerFull(value: unknown): React.ReactNode {

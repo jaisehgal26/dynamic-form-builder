@@ -46,100 +46,117 @@ export function FieldCard({ field, index, selected }: FieldCardProps) {
       style={style}
       onClick={() => selectField(field.id)}
       className={cn(
-        "group relative flex items-start gap-3 rounded-xl border bg-card p-4 shadow-sm transition-all",
+        "group relative rounded-xl bg-card text-card-foreground transition-all duration-150 ease-smooth",
+        "border border-border/60",
         selected
-          ? "border-primary ring-2 ring-primary/20"
-          : "hover:border-zinc-300",
-        isDragging && "opacity-60 shadow-lg",
+          ? "border-primary/40 shadow-[0_0_0_3px_hsl(var(--ring)/0.12)]"
+          : "hover:border-border",
+        isDragging && "opacity-60 shadow-md",
       )}
     >
-      <button
-        type="button"
-        className="mt-1 cursor-grab touch-none rounded p-1 text-muted-foreground hover:bg-muted active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Drag to reorder"
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
+      {/* Active accent rail */}
+      {selected && (
+        <span className="absolute left-0 top-3 bottom-3 w-0.5 rounded-full bg-primary" />
+      )}
 
-      <div className="min-w-0 flex-1" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <FieldIcon type={field.type} className="h-3.5 w-3.5" />
-          <span>{FIELD_TYPE_LABELS[field.type]}</span>
-          <span>·</span>
-          <span>Step {field.step}</span>
-          <span>·</span>
-          <span>#{index + 1}</span>
-          {field.required && (
-            <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
-              Required
-            </span>
+      <div className="flex items-start gap-2 p-4">
+        <button
+          type="button"
+          className="mt-1 cursor-grab touch-none rounded text-muted-foreground/60 opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 active:cursor-grabbing"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Drag to reorder"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+
+        <div
+          className="min-w-0 flex-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <FieldIcon type={field.type} className="h-3 w-3" />
+            <span>{FIELD_TYPE_LABELS[field.type]}</span>
+            <span className="text-muted-foreground/40">·</span>
+            <span>Step {field.step}</span>
+            <span className="text-muted-foreground/40">·</span>
+            <span className="tabular-nums">#{index + 1}</span>
+            {field.required && (
+              <span className="ml-1 inline-flex items-center rounded-full bg-amber-500/15 px-1.5 py-px text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                Required
+              </span>
+            )}
+          </div>
+
+          {field.type === "page_break" ? (
+            <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="h-px flex-1 bg-border/60" />
+              <span className="rounded-full border border-border/70 bg-background px-2 py-0.5">
+                Page break
+              </span>
+              <span className="h-px flex-1 bg-border/60" />
+            </div>
+          ) : (
+            <>
+              <AutoGrowTextarea
+                value={field.label}
+                onChange={(v) =>
+                  updateField(field.id, {
+                    label: v || "Untitled question",
+                  })
+                }
+                placeholder="Question"
+                className={cn(
+                  "mt-1.5 w-full resize-none border-0 bg-transparent p-0 text-sm font-medium leading-snug tracking-tightish outline-none placeholder:text-muted-foreground/50 focus:ring-0",
+                  field.type === "section_heading" && "text-base",
+                )}
+              />
+              {!isLayout && (
+                <AutoGrowTextarea
+                  value={field.description ?? ""}
+                  onChange={(v) =>
+                    updateField(field.id, { description: v })
+                  }
+                  placeholder="Description (optional)"
+                  className="mt-0.5 w-full resize-none border-0 bg-transparent p-0 text-xs leading-relaxed text-muted-foreground outline-none placeholder:text-muted-foreground/50 focus:ring-0"
+                />
+              )}
+              {!isLayout && (
+                <div className="mt-3">
+                  <FieldPreviewControl field={field} />
+                </div>
+              )}
+            </>
           )}
         </div>
 
-        {field.type === "page_break" ? (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="h-px flex-1 bg-border" />
-            <span className="rounded-full border px-2 py-0.5">Page break</span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-        ) : (
-          <>
-            <AutoGrowTextarea
-              value={field.label}
-              onChange={(v) =>
-                updateField(field.id, { label: v || "Untitled question" })
-              }
-              placeholder="Question"
-              className={cn(
-                "mt-1.5 w-full resize-none border-0 bg-transparent p-0 text-sm font-semibold leading-snug outline-none placeholder:text-muted-foreground/60 focus:ring-0",
-                field.type === "section_heading" && "text-base",
-              )}
-            />
-            {!isLayout && (
-              <AutoGrowTextarea
-                value={field.description ?? ""}
-                onChange={(v) =>
-                  updateField(field.id, { description: v })
-                }
-                placeholder="Description (optional)"
-                className="mt-0.5 w-full resize-none border-0 bg-transparent p-0 text-xs text-muted-foreground outline-none placeholder:text-muted-foreground/50 focus:ring-0"
-              />
-            )}
-            {!isLayout && (
-              <div className="mt-3">
-                <FieldPreviewControl field={field} />
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            duplicateField(field.id);
-          }}
-          aria-label="Duplicate"
-        >
-          <Copy className="h-3.5 w-3.5" />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost"
-          onClick={(e) => {
-            e.stopPropagation();
-            deleteField(field.id);
-          }}
-          aria-label="Delete"
-        >
-          <Trash2 className="h-3.5 w-3.5 text-destructive" />
-        </Button>
+        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              duplicateField(field.id);
+            }}
+            aria-label="Duplicate"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <Copy className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            onClick={(e) => {
+              e.stopPropagation();
+              deleteField(field.id);
+            }}
+            aria-label="Delete"
+            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -184,7 +201,7 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
   switch (field.type) {
     case "long_text":
       return (
-        <div className="h-16 rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+        <div className="h-16 rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
           {field.placeholder || "Type your answer…"}
         </div>
       );
@@ -195,12 +212,14 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
           {(field.config.options ?? []).slice(0, 4).map((opt) => (
             <div
               key={opt.id}
-              className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs"
+              className="flex items-center gap-2 rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs text-muted-foreground"
             >
               <span
                 className={cn(
-                  "h-3 w-3 shrink-0 border",
-                  field.type === "single_choice" ? "rounded-full" : "rounded-sm",
+                  "h-3 w-3 shrink-0 border border-border",
+                  field.type === "single_choice"
+                    ? "rounded-full"
+                    : "rounded-sm",
                 )}
               />
               <span className="truncate">{opt.label}</span>
@@ -210,7 +229,7 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
       );
     case "dropdown":
       return (
-        <div className="rounded-md border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+        <div className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground">
           {field.config.options?.[0]?.label ?? "Select an option"}
         </div>
       );
@@ -221,7 +240,7 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
           {Array.from({ length: max }).map((_, i) => (
             <span
               key={i}
-              className="text-muted-foreground"
+              className="text-muted-foreground/40"
               aria-hidden
             >
               ★
@@ -236,7 +255,7 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
           {Array.from({ length: 11 }).map((_, i) => (
             <span
               key={i}
-              className="flex h-6 w-6 items-center justify-center rounded border text-[11px] text-muted-foreground"
+              className="flex h-6 w-6 items-center justify-center rounded border border-border/60 bg-background text-[10px] text-muted-foreground tabular-nums"
             >
               {i}
             </span>
@@ -245,19 +264,19 @@ function FieldPreviewControl({ field }: { field: FormFieldDef }) {
       );
     case "date":
       return (
-        <div className="rounded-md border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+        <div className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground">
           mm / dd / yyyy
         </div>
       );
     case "file_upload":
       return (
-        <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground">
+        <div className="rounded-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground">
           Upload a file
         </div>
       );
     default:
       return (
-        <div className="rounded-md border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
+        <div className="rounded-md border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground">
           {field.placeholder || "Type your answer…"}
         </div>
       );

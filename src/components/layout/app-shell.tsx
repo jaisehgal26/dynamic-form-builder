@@ -20,7 +20,7 @@ export async function AppShell({
   if (!session) redirect("/login");
 
   return (
-    <div className="flex min-h-screen bg-muted/10">
+    <div className="flex min-h-screen bg-background">
       <DashboardSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <DashboardHeader
@@ -29,7 +29,7 @@ export async function AppShell({
           breadcrumb={breadcrumb}
           actions={actions}
         />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1">{children}</main>
       </div>
     </div>
   );

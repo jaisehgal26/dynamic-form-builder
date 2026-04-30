@@ -33,24 +33,27 @@ export default async function PublicFormPage({
   return (
     <div
       className="min-h-screen"
-      style={{ backgroundColor: form.theme.backgroundColor || "#f8fafc" }}
+      style={{ backgroundColor: form.theme.backgroundColor || "hsl(var(--muted) / 0.4)" }}
     >
-      <div className="mx-auto max-w-2xl px-4 py-10 sm:py-16">
+      <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:py-14">
         <div className="mb-6 flex items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
               <Boxes className="h-3.5 w-3.5" />
-            </div>
-            <span>FormForge</span>
+            </span>
+            <span className="font-medium tracking-tightish">FormForge</span>
           </Link>
         </div>
         <PublicFormRenderer form={form} />
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Powered by{" "}
-          <Link href="/" className="underline-offset-4 hover:underline">
+          <Link
+            href="/"
+            className="font-medium text-foreground/80 underline-offset-4 hover:underline"
+          >
             FormForge
           </Link>
         </p>

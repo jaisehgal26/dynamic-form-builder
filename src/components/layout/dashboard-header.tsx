@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, User } from "lucide-react";
+import { ChevronRight, LogOut, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,16 +43,16 @@ export function DashboardHeader({
   };
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur-md sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
         {breadcrumb && breadcrumb.length > 0 ? (
-          <nav className="flex min-w-0 items-center gap-1 text-sm">
+          <nav className="flex min-w-0 items-center gap-1.5 text-sm">
             {breadcrumb.map((b, i) => (
               <React.Fragment key={i}>
                 {b.href ? (
                   <Link
                     href={b.href}
-                    className="truncate text-muted-foreground hover:text-foreground"
+                    className="truncate text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {b.label}
                   </Link>
@@ -62,33 +62,38 @@ export function DashboardHeader({
                   </span>
                 )}
                 {i < breadcrumb.length - 1 && (
-                  <span className="text-muted-foreground">/</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
                 )}
               </React.Fragment>
             ))}
           </nav>
         ) : (
-          <h1 className="truncate text-base font-semibold">
+          <h1 className="truncate text-sm font-medium tracking-tightish">
             {title ?? "Dashboard"}
           </h1>
         )}
       </div>
+
       <div className="flex items-center gap-2">
         {actions}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                {initials || <User className="h-3.5 w-3.5" />}
+            <Button variant="ghost" size="sm" className="h-8 gap-2 px-1.5">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
+                {initials || <User className="h-3 w-3" />}
               </span>
-              <span className="hidden text-sm sm:inline">{user.name}</span>
+              <span className="hidden text-sm font-normal text-muted-foreground sm:inline">
+                {user.name}
+              </span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" sideOffset={8} className="w-60">
             <DropdownMenuLabel>
               <div className="flex flex-col">
-                <span className="truncate text-sm font-medium">{user.name}</span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate text-sm font-medium">
+                  {user.name}
+                </span>
+                <span className="truncate text-xs font-normal text-muted-foreground">
                   {user.email}
                 </span>
               </div>

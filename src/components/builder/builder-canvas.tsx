@@ -16,10 +16,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { FilePlus2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useBuilderStore } from "@/stores/use-builder-store";
 import { FieldCard } from "./field-card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 
 export function BuilderCanvas() {
@@ -48,17 +47,22 @@ export function BuilderCanvas() {
 
   if (fields.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-10">
-        <EmptyState
-          icon={<FilePlus2 className="h-5 w-5" />}
-          title="Start building your form"
-          description="Add fields from the palette on the left, or create your first short text question."
-          action={
-            <Button onClick={() => addField("short_text")}>
-              Add short text
-            </Button>
-          }
-        />
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-background/40 px-6 py-16 text-center">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Sparkles className="h-4 w-4" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm font-medium tracking-tightish">
+            Start building your form
+          </h3>
+          <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+            Pick a field type from the palette, or add a quick short-text
+            question to begin.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => addField("short_text")}>
+          Add short text
+        </Button>
       </div>
     );
   }
