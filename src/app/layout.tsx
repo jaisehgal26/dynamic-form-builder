@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import { themeScript } from "@/lib/theme-script";
 import "./globals.css";
 
 const inter = Inter({
@@ -22,7 +24,8 @@ export const metadata: Metadata = {
   ),
   openGraph: {
     title: "FormForge",
-    description: "Build production-ready forms with conditional logic and analytics.",
+    description:
+      "Build production-ready forms with conditional logic and analytics.",
     type: "website",
   },
 };
@@ -34,11 +37,18 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Apply saved theme synchronously to avoid FOUC. Skips /f/* */}
+        <script
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+          suppressHydrationWarning
+        />
+      </head>
       <body className={`${inter.variable} font-sans`}>
-        <TooltipProvider delayDuration={150}>
-          {children}
-        </TooltipProvider>
-        <Toaster />
+        <ThemeProvider>
+          <TooltipProvider delayDuration={150}>{children}</TooltipProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

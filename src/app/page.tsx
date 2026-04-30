@@ -10,6 +10,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { getSession } from "@/lib/auth";
 
 export default async function LandingPage() {
@@ -49,6 +50,7 @@ export default async function LandingPage() {
             </a>
           </nav>
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             {session ? (
               <Button asChild size="sm">
                 <Link href="/dashboard">

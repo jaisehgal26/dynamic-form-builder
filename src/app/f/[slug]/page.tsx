@@ -32,7 +32,7 @@ export default async function PublicFormPage({
 
   return (
     <div
-      className="min-h-screen"
+      className="light-scope min-h-screen bg-background text-foreground"
       style={{ backgroundColor: form.theme.backgroundColor || "hsl(var(--muted) / 0.4)" }}
     >
       <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:py-14">

@@ -113,6 +113,38 @@
   }
 }
 
+@layer base {
+  /* Force a light palette inside this scope, regardless of any ancestor
+     `.dark` class. Used on public form pages so the form creator's chosen
+     theme is preserved for every visitor. */
+  .light-scope {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 240 65% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 240 5% 96.5%;
+    --secondary-foreground: 240 10% 14%;
+    --muted: 240 5% 96.5%;
+    --muted-foreground: 240 5% 45%;
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 14%;
+    --subtle: 240 5% 98%;
+    --subtle-foreground: 240 5% 32%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 60% 36%;
+    --warning: 32 95% 50%;
+    --border: 240 6% 91%;
+    --input: 240 6% 91%;
+    --ring: 240 65% 56%;
+    color-scheme: light;
+  }
+}
+
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;

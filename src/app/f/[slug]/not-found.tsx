@@ -3,7 +3,7 @@ import { FileSearch } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/20 px-4">
+    <div className="light-scope flex min-h-screen items-center justify-center bg-muted/20 px-4 text-foreground">
       <div className="rounded-2xl border bg-card p-10 text-center shadow-sm">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
           <FileSearch className="h-5 w-5" />
