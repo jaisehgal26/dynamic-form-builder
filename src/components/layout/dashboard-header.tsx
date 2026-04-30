@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ChevronRight, LogOut, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { ChevronRight, LogOut, Menu, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { DashboardNav } from "./dashboard-sidebar";
 
 interface DashboardHeaderProps {
   user: { name: string; email: string };
@@ -30,6 +38,14 @@ export function DashboardHeader({
   actions,
 }: DashboardHeaderProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = React.useState(false);
+
+  // Close drawer on route change
+  React.useEffect(() => {
+    setMobileNavOpen(false);
+  }, [pathname]);
+
   const initials = user.name
     .split(/\s+/)
     .slice(0, 2)
@@ -44,8 +60,32 @@ export function DashboardHeader({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/60 bg-background/80 px-4 backdrop-blur-md sm:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur-md sm:px-6">
       <div className="flex min-w-0 items-center gap-2">
+        {/* Mobile menu button */}
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetTrigger asChild>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              className="md:hidden text-muted-foreground"
+              aria-label="Open menu"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="left"
+            className="bg-subtle/95 p-0 w-64"
+            hideClose
+          >
+            <SheetHeader className="sr-only">
+              <SheetTitle>Workspace navigation</SheetTitle>
+            </SheetHeader>
+            <DashboardNav onNavigate={() => setMobileNavOpen(false)} />
+          </SheetContent>
+        </Sheet>
+
         {breadcrumb && breadcrumb.length > 0 ? (
           <nav className="flex min-w-0 items-center gap-1.5 text-sm">
             {breadcrumb.map((b, i) => (
@@ -75,12 +115,17 @@ export function DashboardHeader({
         )}
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex shrink-0 items-center gap-1">
         {actions}
         <ThemeToggle />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 gap-2 px-1.5">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-2 px-1.5"
+              aria-label="Account menu"
+            >
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-foreground text-[10px] font-semibold text-background">
                 {initials || <User className="h-3 w-3" />}
               </span>

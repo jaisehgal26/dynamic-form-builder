@@ -16,18 +16,26 @@ const NAV = [
     href: "/dashboard",
     label: "Forms",
     icon: FileText,
-    match: (p: string) => p.startsWith("/dashboard/forms") || p === "/dashboard",
+    match: (p: string) =>
+      p.startsWith("/dashboard/forms") || p === "/dashboard",
   },
 ];
 
-export function DashboardSidebar() {
-  const pathname = usePathname();
+interface DashboardNavProps {
+  /** Called when an item is activated — used to dismiss the mobile drawer. */
+  onNavigate?: () => void;
+  className?: string;
+}
 
+/** Reusable sidebar content used in both desktop sidebar and mobile drawer. */
+export function DashboardNav({ onNavigate, className }: DashboardNavProps) {
+  const pathname = usePathname();
   return (
-    <aside className="hidden w-56 shrink-0 flex-col border-r border-border/60 bg-subtle/50 md:flex">
+    <div className={cn("flex h-full flex-col", className)}>
       <div className="flex h-14 items-center px-4">
         <Link
           href="/dashboard"
+          onClick={onNavigate}
           className="flex items-center gap-2 text-sm font-medium"
         >
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-foreground text-background">
@@ -48,6 +56,7 @@ export function DashboardSidebar() {
             <Link
               key={item.label}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "group relative flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
                 active
@@ -70,12 +79,21 @@ export function DashboardSidebar() {
       <div className="border-t border-border/60 p-2">
         <Link
           href="/"
+          onClick={onNavigate}
           className="flex items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
         >
           <Home className="h-3.5 w-3.5" />
           Back to site
         </Link>
       </div>
+    </div>
+  );
+}
+
+export function DashboardSidebar() {
+  return (
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-border/60 bg-subtle/50 md:flex">
+      <DashboardNav />
     </aside>
   );
 }

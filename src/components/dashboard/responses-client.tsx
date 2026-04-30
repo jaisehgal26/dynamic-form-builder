@@ -185,7 +185,7 @@ export function ResponsesClient({
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <Link
@@ -281,83 +281,141 @@ export function ResponsesClient({
             description="Try a different keyword or clear the search to see all responses."
           />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-4 py-2.5 text-left font-medium">
-                    Submitted
-                  </th>
-                  {collectEmail && (
-                    <th className="px-4 py-2.5 text-left font-medium">
-                      Email
-                    </th>
+          <>
+            {/* Mobile card list (<sm) */}
+            <ul className="divide-y divide-border/60 sm:hidden">
+              {filtered.map((r) => (
+                <li
+                  key={r.id}
+                  onClick={() => setOpen(r)}
+                  className="group flex cursor-pointer flex-col gap-1.5 px-4 py-3.5 transition-colors active:bg-muted/40"
+                >
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground tabular-nums">
+                    <span>{formatDateTime(r.submittedAt)}</span>
+                    <span>{formatDuration(r.completionTimeSeconds ?? 0)}</span>
+                  </div>
+                  {collectEmail && r.respondentEmail && (
+                    <div className="truncate font-mono text-xs">
+                      {r.respondentEmail}
+                    </div>
                   )}
-                  {previewFields.map((f) => (
-                    <th
-                      key={f.id}
-                      className="px-4 py-2.5 text-left font-medium"
+                  {previewFields.length > 0 && (
+                    <div className="space-y-0.5">
+                      {previewFields.slice(0, 2).map((f) => (
+                        <div
+                          key={f.id}
+                          className="text-sm"
+                        >
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70">
+                            {truncate(f.label, 28)}
+                          </span>{" "}
+                          {renderAnswerPreview(r.answers[f.id])}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="text-xs text-primary">Tap to view</span>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(r.id);
+                      }}
+                      aria-label="Delete response"
+                      className="text-muted-foreground hover:text-destructive"
                     >
-                      {truncate(f.label, 32)}
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {/* Desktop / tablet table (sm+) */}
+            <div className="hidden overflow-x-auto sm:block">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border/60 bg-muted/40 text-xs text-muted-foreground">
+                    <th className="px-4 py-2.5 text-left font-medium">
+                      Submitted
                     </th>
-                  ))}
-                  <th className="px-4 py-2.5 text-left font-medium">Time</th>
-                  <th className="w-px px-4 py-2.5 text-right font-medium">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/50">
-                {filtered.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="group transition-colors hover:bg-muted/40"
-                  >
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
-                      {formatDateTime(r.submittedAt)}
-                    </td>
                     {collectEmail && (
-                      <td className="whitespace-nowrap px-4 py-3 text-xs">
-                        {r.respondentEmail ? (
-                          <span className="font-mono">
-                            {truncate(r.respondentEmail, 32)}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground/60">—</span>
-                        )}
-                      </td>
+                      <th className="px-4 py-2.5 text-left font-medium">
+                        Email
+                      </th>
                     )}
                     {previewFields.map((f) => (
-                      <td key={f.id} className="px-4 py-3 align-top">
-                        {renderAnswerPreview(r.answers[f.id])}
-                      </td>
+                      <th
+                        key={f.id}
+                        className="px-4 py-2.5 text-left font-medium"
+                      >
+                        {truncate(f.label, 32)}
+                      </th>
                     ))}
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
-                      {formatDuration(r.completionTimeSeconds ?? 0)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setOpen(r)}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        size="icon-sm"
-                        variant="ghost"
-                        onClick={() => setDeleteId(r.id)}
-                        aria-label="Delete response"
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
+                    <th className="px-4 py-2.5 text-left font-medium">
+                      Time
+                    </th>
+                    <th className="w-px px-4 py-2.5 text-right font-medium">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {filtered.map((r) => (
+                    <tr
+                      key={r.id}
+                      className="group transition-colors hover:bg-muted/40"
+                    >
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                        {formatDateTime(r.submittedAt)}
+                      </td>
+                      {collectEmail && (
+                        <td className="whitespace-nowrap px-4 py-3 text-xs">
+                          {r.respondentEmail ? (
+                            <span className="font-mono">
+                              {truncate(r.respondentEmail, 32)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground/60">
+                              —
+                            </span>
+                          )}
+                        </td>
+                      )}
+                      {previewFields.map((f) => (
+                        <td key={f.id} className="px-4 py-3 align-top">
+                          {renderAnswerPreview(r.answers[f.id])}
+                        </td>
+                      ))}
+                      <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
+                        {formatDuration(r.completionTimeSeconds ?? 0)}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setOpen(r)}
+                        >
+                          View
+                        </Button>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          onClick={() => setDeleteId(r.id)}
+                          aria-label="Delete response"
+                          className="text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 

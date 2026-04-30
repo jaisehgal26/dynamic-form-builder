@@ -92,7 +92,7 @@ export function AnalyticsDashboard({
     analytics.totalSubmissions === 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-6 py-10">
+    <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <Link

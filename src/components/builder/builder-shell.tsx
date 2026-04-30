@@ -14,6 +14,8 @@ import {
   FileJson,
   Inbox,
   Loader2,
+  MoreHorizontal,
+  Plus,
   Redo2,
   Undo2,
   Upload,
@@ -33,6 +35,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
@@ -99,7 +115,19 @@ export function BuilderShell(props: BuilderShellProps) {
   const [shareOpen, setShareOpen] = React.useState(false);
   const [embedOpen, setEmbedOpen] = React.useState(false);
   const [schemaOpen, setSchemaOpen] = React.useState(false);
+  const [paletteOpen, setPaletteOpen] = React.useState(false);
+  const [editorOpen, setEditorOpen] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
+
+  // On non-desktop screens, auto-open the field editor when a field is
+  // selected. We never auto-open on `lg+` because the editor is permanently
+  // visible there.
+  React.useEffect(() => {
+    if (!selectedFieldId) return;
+    if (typeof window === "undefined") return;
+    const isLg = window.matchMedia("(min-width: 1024px)").matches;
+    if (!isLg) setEditorOpen(true);
+  }, [selectedFieldId]);
 
   React.useEffect(() => {
     init({
@@ -140,13 +168,11 @@ export function BuilderShell(props: BuilderShellProps) {
     () => ({ title, description, fields, settings, theme, access }),
     [title, description, fields, settings, theme, access],
   );
-
   const debouncedSnapshot = useDebounce(snapshot, 800);
 
   const saveRef = React.useRef<(snap: typeof snapshot) => Promise<void>>(
     async () => {},
   );
-
   saveRef.current = React.useCallback(
     async (snap: typeof snapshot) => {
       setAutosaveStatus("saving");
@@ -189,23 +215,9 @@ export function BuilderShell(props: BuilderShellProps) {
     saveRef.current(debouncedSnapshot);
   }, [debouncedSnapshot, isDirty]);
 
-  // Keyboard shortcuts: Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Cmd/Ctrl+S, Delete, Esc
   useKeyboardShortcuts([
-    {
-      key: "z",
-      meta: true,
-      handler: () => {
-        undo();
-      },
-    },
-    {
-      key: "z",
-      meta: true,
-      shift: true,
-      handler: () => {
-        redo();
-      },
-    },
+    { key: "z", meta: true, handler: () => undo() },
+    { key: "z", meta: true, shift: true, handler: () => redo() },
     {
       key: "s",
       meta: true,
@@ -291,12 +303,12 @@ export function BuilderShell(props: BuilderShellProps) {
   return (
     <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-background">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 bg-background/85 px-4 py-2 backdrop-blur">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-background/85 px-3 py-2 backdrop-blur sm:px-4">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="h-8 max-w-md border-transparent bg-transparent px-2 text-sm font-medium tracking-tightish shadow-none focus-visible:border-input focus-visible:bg-background"
+            className="h-8 min-w-0 border-transparent bg-transparent px-2 text-sm font-medium tracking-tightish shadow-none focus-visible:border-input focus-visible:bg-background"
             placeholder="Untitled form"
           />
           <AutosaveIndicator
@@ -305,7 +317,8 @@ export function BuilderShell(props: BuilderShellProps) {
             isDirty={isDirty}
           />
         </div>
-        <div className="flex items-center gap-1">
+
+        <div className="flex shrink-0 items-center gap-0.5">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -336,12 +349,14 @@ export function BuilderShell(props: BuilderShellProps) {
             </TooltipTrigger>
             <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
           </Tooltip>
-          <span className="mx-1 hidden h-4 w-px bg-border/70 sm:block" />
+          <span className="mx-1 hidden h-4 w-px bg-border/70 lg:block" />
+
+          {/* Desktop-only quick links */}
           <Button
             size="sm"
             variant="ghost"
             asChild
-            className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
+            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
           >
             <a href={`/dashboard/forms/${props.formId}/responses`}>
               <Inbox className="h-3.5 w-3.5" />
@@ -352,7 +367,7 @@ export function BuilderShell(props: BuilderShellProps) {
             size="sm"
             variant="ghost"
             asChild
-            className="hidden text-muted-foreground hover:text-foreground sm:inline-flex"
+            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
           >
             <a href={`/dashboard/forms/${props.formId}/analytics`}>
               <BarChart3 className="h-3.5 w-3.5" />
@@ -363,31 +378,77 @@ export function BuilderShell(props: BuilderShellProps) {
             size="sm"
             variant="ghost"
             onClick={() => setSchemaOpen(true)}
-            className="text-muted-foreground hover:text-foreground"
+            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
           >
             <FileJson className="h-3.5 w-3.5" />
             Schema
           </Button>
           {status === "published" && (
-            <>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setEmbedOpen(true)}
+              className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
+            >
+              <Code2 className="h-3.5 w-3.5" />
+              Embed
+            </Button>
+          )}
+
+          {/* Overflow menu for the same actions on `<lg` */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
-                size="sm"
+                size="icon-sm"
                 variant="ghost"
-                onClick={() => setEmbedOpen(true)}
-                className="text-muted-foreground hover:text-foreground"
+                className="text-muted-foreground hover:text-foreground lg:hidden"
+                aria-label="More"
               >
-                <Code2 className="h-3.5 w-3.5" />
-                Embed
+                <MoreHorizontal className="h-4 w-4" />
               </Button>
-              <Button
-                size="sm"
-                variant="subtle"
-                onClick={() => setShareOpen(true)}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Share
-              </Button>
-            </>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" sideOffset={8} className="w-52">
+              <DropdownMenuItem asChild>
+                <a
+                  href={`/dashboard/forms/${props.formId}/responses`}
+                  className="flex items-center gap-2"
+                >
+                  <Inbox className="h-3.5 w-3.5" />
+                  Responses
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a
+                  href={`/dashboard/forms/${props.formId}/analytics`}
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-3.5 w-3.5" />
+                  Analytics
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setSchemaOpen(true)}>
+                <FileJson className="h-3.5 w-3.5" />
+                Schema
+              </DropdownMenuItem>
+              {status === "published" && (
+                <DropdownMenuItem onClick={() => setEmbedOpen(true)}>
+                  <Code2 className="h-3.5 w-3.5" />
+                  Embed
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {status === "published" && (
+            <Button
+              size="sm"
+              variant="subtle"
+              onClick={() => setShareOpen(true)}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </Button>
           )}
           {status === "published" ? (
             <Button
@@ -401,7 +462,7 @@ export function BuilderShell(props: BuilderShellProps) {
               ) : (
                 <EyeOff className="h-3.5 w-3.5" />
               )}
-              Unpublish
+              <span className="hidden sm:inline">Unpublish</span>
             </Button>
           ) : (
             <Button size="sm" onClick={handlePublish} disabled={publishing}>
@@ -410,7 +471,7 @@ export function BuilderShell(props: BuilderShellProps) {
               ) : (
                 <Eye className="h-3.5 w-3.5" />
               )}
-              Publish
+              <span className="hidden sm:inline">Publish</span>
             </Button>
           )}
         </div>
@@ -420,7 +481,7 @@ export function BuilderShell(props: BuilderShellProps) {
         defaultValue="design"
         className="flex flex-1 flex-col overflow-hidden"
       >
-        <div className="border-b border-border/60 bg-background px-4">
+        <div className="border-b border-border/60 bg-background px-3 sm:px-4">
           <TabsList className="my-1.5 bg-muted/50">
             <TabsTrigger value="design">Design</TabsTrigger>
             <TabsTrigger value="preview">Preview</TabsTrigger>
@@ -432,7 +493,7 @@ export function BuilderShell(props: BuilderShellProps) {
           value="design"
           className="m-0 grid flex-1 overflow-hidden lg:grid-cols-[240px_1fr_320px]"
         >
-          {/* Left palette */}
+          {/* Left palette — desktop */}
           <aside className="hidden overflow-y-auto border-r border-border/60 bg-subtle/40 px-3 py-4 scrollbar-thin lg:block">
             <h3 className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Add field
@@ -441,13 +502,13 @@ export function BuilderShell(props: BuilderShellProps) {
           </aside>
 
           {/* Canvas */}
-          <div className="overflow-y-auto bg-muted/30 px-6 py-8 scrollbar-thin">
-            <div className="mx-auto max-w-2xl space-y-6">
+          <div className="overflow-y-auto bg-muted/30 px-4 py-6 scrollbar-thin sm:px-6 sm:py-8">
+            <div className="mx-auto max-w-2xl space-y-5 sm:space-y-6">
               <div className="space-y-1.5">
                 <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="h-auto border-transparent bg-transparent px-0 py-0 text-2xl font-semibold tracking-tightish shadow-none focus-visible:bg-transparent focus-visible:ring-0"
+                  className="h-auto border-transparent bg-transparent px-0 py-0 text-2xl font-semibold tracking-tightish shadow-none focus-visible:bg-transparent focus-visible:ring-0 sm:text-2xl"
                   placeholder="Untitled form"
                 />
                 <Textarea
@@ -459,18 +520,10 @@ export function BuilderShell(props: BuilderShellProps) {
                 />
               </div>
               <BuilderCanvas />
-              <div className="lg:hidden">
-                <h3 className="mb-2 mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                  Add field
-                </h3>
-                <div className="rounded-xl border border-border/60 bg-background p-3">
-                  <FieldPalette />
-                </div>
-              </div>
             </div>
           </div>
 
-          {/* Right inspector */}
+          {/* Right inspector — desktop */}
           <aside className="hidden overflow-hidden border-l border-border/60 bg-subtle/40 lg:block">
             <FieldEditorPanel />
           </aside>
@@ -482,11 +535,65 @@ export function BuilderShell(props: BuilderShellProps) {
 
         <TabsContent
           value="settings"
-          className="m-0 flex-1 overflow-y-auto bg-muted/30 px-6 py-8 scrollbar-thin"
+          className="m-0 flex-1 overflow-y-auto bg-muted/30 px-4 py-6 scrollbar-thin sm:px-6 sm:py-8"
         >
           <SettingsPanel />
         </TabsContent>
       </Tabs>
+
+      {/* Mobile/tablet floating "Add field" button + palette sheet */}
+      <Sheet open={paletteOpen} onOpenChange={setPaletteOpen}>
+        <SheetTrigger asChild>
+          <Button
+            size="lg"
+            className="fixed bottom-5 right-5 z-20 h-12 rounded-full px-5 shadow-lg lg:hidden"
+            aria-label="Add field"
+          >
+            <Plus className="h-4 w-4" />
+            Add field
+          </Button>
+        </SheetTrigger>
+        <SheetContent
+          side="left"
+          className="w-72 overflow-y-auto bg-subtle/95 p-0 scrollbar-thin"
+        >
+          <SheetHeader>
+            <SheetTitle>Add field</SheetTitle>
+          </SheetHeader>
+          <div
+            className="px-3 pb-6"
+            onClick={(e) => {
+              // Auto-close after a palette button is tapped
+              if ((e.target as HTMLElement).closest("button")) {
+                setTimeout(() => setPaletteOpen(false), 80);
+              }
+            }}
+          >
+            <FieldPalette />
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Mobile/tablet field editor — bottom sheet */}
+      <Sheet
+        open={editorOpen && selectedFieldId !== null}
+        onOpenChange={(o) => {
+          setEditorOpen(o);
+          if (!o) selectField(null);
+        }}
+      >
+        <SheetContent
+          side="bottom"
+          className="max-h-[85vh] overflow-hidden p-0 lg:hidden"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Edit field</SheetTitle>
+          </SheetHeader>
+          <div className="h-full max-h-[85vh] overflow-hidden">
+            <FieldEditorPanel />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <ShareDialog
         open={shareOpen}
@@ -526,7 +633,7 @@ function AutosaveIndicator({
 }) {
   if (status === "saving") {
     return (
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
         <Loader2 className="h-3 w-3 animate-spin" />
         Saving
       </span>
@@ -536,13 +643,13 @@ function AutosaveIndicator({
     return (
       <span className="flex items-center gap-1.5 text-xs text-destructive">
         <CloudOff className="h-3 w-3" />
-        Save failed
+        <span className="hidden sm:inline">Save failed</span>
       </span>
     );
   }
   if (lastSavedAt && !isDirty) {
     return (
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
         <Check className="h-3 w-3 text-success" />
         Saved {formatRelative(lastSavedAt)}
       </span>
@@ -552,7 +659,7 @@ function AutosaveIndicator({
     return (
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        Unsaved
+        <span className="hidden sm:inline">Unsaved</span>
       </span>
     );
   }
@@ -582,7 +689,11 @@ function ShareDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center gap-2">
-          <Input value={url} readOnly className="h-10 font-mono text-xs" />
+          <Input
+            value={url}
+            readOnly
+            className="h-10 min-w-0 flex-1 font-mono text-xs"
+          />
           <CopyButton value={url} size="icon" />
         </div>
         {published && (
@@ -614,8 +725,7 @@ function EmbedDialog({
         <DialogHeader>
           <DialogTitle>Embed this form</DialogTitle>
           <DialogDescription>
-            Copy and paste this snippet into your website. The iframe is
-            responsive — adjust height to taste.
+            Copy and paste this snippet into your website.
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-start gap-2">
@@ -623,7 +733,7 @@ function EmbedDialog({
             value={snippet}
             readOnly
             rows={3}
-            className="font-mono text-xs leading-relaxed"
+            className="min-w-0 flex-1 font-mono text-xs leading-relaxed"
           />
           <CopyButton value={snippet} size="icon" />
         </div>
@@ -672,11 +782,7 @@ function SchemaDialog({
   const handleImport = () => {
     try {
       const parsed = JSON.parse(text);
-      // Basic shape validation — full Zod validation happens server-side on save.
-      if (
-        parsed.fields &&
-        !Array.isArray(parsed.fields)
-      ) {
+      if (parsed.fields && !Array.isArray(parsed.fields)) {
         throw new Error("`fields` must be an array.");
       }
       onImport(parsed);
@@ -709,10 +815,10 @@ function SchemaDialog({
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          rows={16}
-          className="font-mono text-xs leading-relaxed"
+          rows={14}
+          className="max-h-[55vh] font-mono text-xs leading-relaxed"
         />
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={handleDownload}>
             <Download className="h-3.5 w-3.5" />
             Download
