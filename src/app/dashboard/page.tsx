@@ -12,23 +12,38 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const rows = await db
-    .select({
-      id: forms.id,
-      title: forms.title,
-      description: forms.description,
-      slug: forms.slug,
-      status: forms.status,
-      createdAt: forms.createdAt,
-      updatedAt: forms.updatedAt,
-      publishedAt: forms.publishedAt,
-      responseCount: sql<number>`(SELECT COUNT(*) FROM ${formResponses} WHERE ${formResponses.formId} = ${forms.id})`,
-      viewCount: sql<number>`(SELECT COUNT(*) FROM ${formEvents} WHERE ${formEvents.formId} = ${forms.id} AND ${formEvents.eventType} = 'view')`,
-    })
+  const formRows = await db
+    .select()
     .from(forms)
     .where(eq(forms.userId, session.userId));
 
-  const forms_ = rows
+  // Aggregate counts in separate grouped queries — avoids unreliable
+  // correlated subqueries via Drizzle's sql template tag.
+  const responseCounts = await db
+    .select({
+      formId: formResponses.formId,
+      count: sql<number>`count(*)`,
+    })
+    .from(formResponses)
+    .groupBy(formResponses.formId);
+
+  const viewCounts = await db
+    .select({
+      formId: formEvents.formId,
+      count: sql<number>`count(*)`,
+    })
+    .from(formEvents)
+    .where(eq(formEvents.eventType, "view"))
+    .groupBy(formEvents.formId);
+
+  const responseMap = new Map<string, number>(
+    responseCounts.map((r) => [r.formId, Number(r.count)]),
+  );
+  const viewMap = new Map<string, number>(
+    viewCounts.map((v) => [v.formId, Number(v.count)]),
+  );
+
+  const forms_ = formRows
     .map((r) => ({
       id: r.id,
       title: r.title,
@@ -38,8 +53,8 @@ export default async function DashboardPage() {
       createdAt: Number(r.createdAt),
       updatedAt: Number(r.updatedAt),
       publishedAt: r.publishedAt ? Number(r.publishedAt) : null,
-      responseCount: Number(r.responseCount),
-      viewCount: Number(r.viewCount),
+      responseCount: responseMap.get(r.id) ?? 0,
+      viewCount: viewMap.get(r.id) ?? 0,
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 
