@@ -16,7 +16,7 @@ export async function POST(
       req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       req.headers.get("x-real-ip") ||
       "anonymous";
-    if (!rateLimit(`event:${ip}:${slug}`, 120, 60_000)) {
+    if (!rateLimit(`event:${ip}:${slug}`, 240, 60_000)) {
       return NextResponse.json({ ok: true });
     }
     const body = await req.json().catch(() => ({}));
@@ -36,6 +36,8 @@ export async function POST(
       formId: form.id,
       eventType: data.eventType,
       step: data.step ?? null,
+      fieldId: data.fieldId ?? null,
+      sessionId: data.sessionId ?? null,
       metadataJson: JSON.stringify({
         ...(data.metadata ?? {}),
         device,

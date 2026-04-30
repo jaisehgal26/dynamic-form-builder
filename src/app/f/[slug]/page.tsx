@@ -1,9 +1,16 @@
 import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { Boxes } from "lucide-react";
 import Link from "next/link";
-import { loadPublicForm } from "@/lib/forms.server";
+import { resolvePublicForm, loadFormFields } from "@/lib/forms.server";
 import { PublicFormRenderer } from "@/components/public-form/public-form-renderer";
+import { PasswordGate } from "@/components/public-form/password-gate";
+import { ClosedScreen } from "@/components/public-form/closed-screen";
+import {
+  cookieNameForSlug,
+  verifyAccessToken,
+} from "@/lib/public-tokens";
 
 export const dynamic = "force-dynamic";
 
@@ -13,11 +20,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const form = await loadPublicForm(slug);
-  if (!form) return { title: "Form not found" };
+  const r = await resolvePublicForm(slug);
+  if (r.state === "not_found" || !r.form) return { title: "Form not found" };
   return {
-    title: form.title,
-    description: form.description ?? undefined,
+    title: r.form.title,
+    description: r.form.description ?? undefined,
   };
 }
 
@@ -27,13 +34,16 @@ export default async function PublicFormPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const form = await loadPublicForm(slug);
-  if (!form) notFound();
+  const r = await resolvePublicForm(slug);
+
+  if (r.state === "not_found") notFound();
+
+  const themeBg = r.form?.theme.backgroundColor;
 
   return (
     <div
       className="light-scope min-h-screen bg-background text-foreground"
-      style={{ backgroundColor: form.theme.backgroundColor || "hsl(var(--muted) / 0.4)" }}
+      style={{ backgroundColor: themeBg || "hsl(var(--muted) / 0.4)" }}
     >
       <div className="mx-auto w-full max-w-[640px] px-4 py-10 sm:py-14">
         <div className="mb-6 flex items-center justify-between">
@@ -47,7 +57,18 @@ export default async function PublicFormPage({
             <span className="font-medium tracking-tightish">FormForge</span>
           </Link>
         </div>
-        <PublicFormRenderer form={form} />
+
+        {r.state === "expired" || r.state === "limit_reached" ? (
+          <ClosedScreen
+            variant={r.state}
+            message={r.closedMessage}
+          />
+        ) : r.state === "password_required" ? (
+          <PasswordGateOrForm slug={slug} payload={r.form!} />
+        ) : (
+          r.form && <PublicFormRenderer form={r.form} />
+        )}
+
         <p className="mt-6 text-center text-xs text-muted-foreground">
           Powered by{" "}
           <Link
@@ -59,5 +80,32 @@ export default async function PublicFormPage({
         </p>
       </div>
     </div>
+  );
+}
+
+async function PasswordGateOrForm({
+  slug,
+  payload,
+}: {
+  slug: string;
+  payload: import("@/types/form").PublicFormPayload;
+}) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(cookieNameForSlug(slug))?.value;
+  const allowed = await verifyAccessToken(token, slug);
+  if (!allowed) {
+    return (
+      <PasswordGate
+        slug={slug}
+        title={payload.title}
+        description={payload.description}
+        primaryColor={payload.theme.primaryColor}
+      />
+    );
+  }
+  // Cookie present — load real fields and render.
+  const fields = await loadFormFields(payload.id);
+  return (
+    <PublicFormRenderer form={{ ...payload, fields }} />
   );
 }

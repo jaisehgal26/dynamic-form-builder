@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { FieldRenderer } from "./field-renderer";
 import type {
   FormFieldDef,
@@ -22,7 +24,95 @@ interface PublicFormRendererProps {
   preview?: boolean;
 }
 
+const HIDDEN_PARAMS = [
+  "utm_source",
+  "utm_medium",
+  "utm_campaign",
+  "utm_term",
+  "utm_content",
+  "ref",
+  "userId",
+];
+
+const SESSION_KEY = "ff-session-id";
+
+function readSessionId(): string {
+  if (typeof window === "undefined") return "";
+  let id = sessionStorage.getItem(SESSION_KEY);
+  if (!id) {
+    id =
+      typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+    sessionStorage.setItem(SESSION_KEY, id);
+  }
+  return id;
+}
+
+/** Replace {{name}}-style tokens with values from query params (or empty). */
+function interpolate(text: string, params: URLSearchParams): string {
+  if (!text || !text.includes("{{")) return text;
+  return text.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (_, key) => {
+    const v = params.get(key);
+    return v ? v : "";
+  });
+}
+
+function buildInitialAnswers(
+  fields: FormFieldDef[],
+  params: URLSearchParams,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (f.type === "section_heading" || f.type === "page_break") continue;
+    const candidates = [
+      f.id,
+      // by exact label slug
+      f.label?.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, ""),
+    ].filter(Boolean) as string[];
+    for (const key of candidates) {
+      const v = params.get(key);
+      if (v !== null) {
+        if (f.type === "multiple_choice") {
+          out[f.id] = v.split(",").map((s) => s.trim()).filter(Boolean);
+        } else if (f.type === "number" || f.type === "rating" || f.type === "nps") {
+          const n = Number(v);
+          if (!isNaN(n)) out[f.id] = n;
+        } else {
+          out[f.id] = v;
+        }
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+function collectHidden(params: URLSearchParams): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const key of HIDDEN_PARAMS) {
+    const v = params.get(key);
+    if (v) out[key] = v;
+  }
+  return out;
+}
+
 export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
+  const params = React.useMemo<URLSearchParams>(() => {
+    if (typeof window === "undefined") return new URLSearchParams();
+    return new URLSearchParams(window.location.search);
+  }, []);
+
+  // Personalised title/description via {{name}} tokens
+  const title = React.useMemo(
+    () => interpolate(form.title, params),
+    [form.title, params],
+  );
+  const description = React.useMemo(
+    () => (form.description ? interpolate(form.description, params) : null),
+    [form.description, params],
+  );
+
   const stepsMap = React.useMemo(
     () => groupFieldsByStep(form.fields),
     [form.fields],
@@ -34,7 +124,14 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
   const useMultiStep = form.settings.multiStep && stepKeys.length > 1;
 
   const [stepIndex, setStepIndex] = React.useState(0);
-  const [answers, setAnswers] = React.useState<Record<string, unknown>>({});
+  const [answers, setAnswers] = React.useState<Record<string, unknown>>(() =>
+    buildInitialAnswers(form.fields, params),
+  );
+  const [respondentEmail, setRespondentEmail] = React.useState<string>(
+    () => params.get("email") || "",
+  );
+  const hidden = React.useMemo(() => collectHidden(params), [params]);
+
   const [errors, setErrors] = React.useState<Record<string, string | null>>({});
   const [submitting, setSubmitting] = React.useState(false);
   const [done, setDone] = React.useState(false);
@@ -44,6 +141,7 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
   const eventSentRef = React.useRef<{ view?: boolean; steps: Set<number> }>({
     steps: new Set(),
   });
+  const sessionIdRef = React.useRef<string>("");
 
   const currentStep = useMultiStep ? stepKeys[stepIndex] : stepKeys[0] ?? 1;
   const currentFields = stepsMap.get(currentStep) ?? [];
@@ -53,19 +151,61 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
     ? Math.round(((stepIndex + 1) / stepKeys.length) * 100)
     : 0;
 
+  // Question numbering — only for input fields and based on order
+  const numbering = React.useMemo(() => {
+    if (!form.settings.showQuestionNumbers) return new Map<string, number>();
+    const m = new Map<string, number>();
+    let n = 0;
+    for (const f of form.fields) {
+      if (f.type === "section_heading" || f.type === "page_break") continue;
+      n++;
+      m.set(f.id, n);
+    }
+    return m;
+  }, [form.fields, form.settings.showQuestionNumbers]);
+
+  React.useEffect(() => {
+    if (!preview && typeof window !== "undefined") {
+      sessionIdRef.current = readSessionId();
+    }
+  }, [preview]);
+
   React.useEffect(() => {
     if (preview) return;
     if (eventSentRef.current.view) return;
     eventSentRef.current.view = true;
-    sendEvent(form.slug, { eventType: "view" });
+    sendEvent(form.slug, {
+      eventType: "view",
+      sessionId: sessionIdRef.current,
+    });
   }, [preview, form.slug]);
 
   React.useEffect(() => {
     if (preview) return;
     if (eventSentRef.current.steps.has(currentStep)) return;
     eventSentRef.current.steps.add(currentStep);
-    sendEvent(form.slug, { eventType: "step_view", step: currentStep });
+    sendEvent(form.slug, {
+      eventType: "step_view",
+      step: currentStep,
+      sessionId: sessionIdRef.current,
+    });
   }, [preview, form.slug, currentStep]);
+
+  // Best-effort drop-off tracking on unload
+  React.useEffect(() => {
+    if (preview) return;
+    const onUnload = () => {
+      if (done) return;
+      if (!startedRef.current) return;
+      sendEvent(form.slug, {
+        eventType: "drop_off",
+        step: currentStep,
+        sessionId: sessionIdRef.current,
+      });
+    };
+    window.addEventListener("pagehide", onUnload);
+    return () => window.removeEventListener("pagehide", onUnload);
+  }, [preview, form.slug, currentStep, done]);
 
   const onValueChange = (fieldId: string, value: unknown) => {
     if (!preview && !startedRef.current) {
@@ -73,11 +213,39 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
       startTimeRef.current = Date.now();
       sendEvent(form.slug, {
         eventType: "start",
+        sessionId: sessionIdRef.current,
         metadata: collectClientMetadata(),
       });
     }
     setAnswers((prev) => ({ ...prev, [fieldId]: value }));
     setErrors((prev) => ({ ...prev, [fieldId]: null }));
+    if (!preview) {
+      sendEvent(form.slug, {
+        eventType: "field_change",
+        step: currentStep,
+        fieldId,
+        sessionId: sessionIdRef.current,
+      });
+    }
+  };
+
+  const onFieldFocus = (fieldId: string) => {
+    if (preview) return;
+    sendEvent(form.slug, {
+      eventType: "field_focus",
+      step: currentStep,
+      fieldId,
+      sessionId: sessionIdRef.current,
+    });
+  };
+  const onFieldBlur = (fieldId: string) => {
+    if (preview) return;
+    sendEvent(form.slug, {
+      eventType: "field_blur",
+      step: currentStep,
+      fieldId,
+      sessionId: sessionIdRef.current,
+    });
   };
 
   const validateStep = (): boolean => {
@@ -86,7 +254,26 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
     for (const f of visibleFields) {
       const err = validateField(f, answers[f.id]);
       newErrors[f.id] = err;
-      if (err) valid = false;
+      if (err) {
+        valid = false;
+        if (!preview) {
+          sendEvent(form.slug, {
+            eventType: "field_error",
+            step: currentStep,
+            fieldId: f.id,
+            sessionId: sessionIdRef.current,
+            metadata: { message: err },
+          });
+        }
+      }
+    }
+    if (form.collectEmail && isLastStep) {
+      if (!respondentEmail || !/^\S+@\S+\.\S+$/.test(respondentEmail)) {
+        newErrors["__email"] = "Enter a valid email.";
+        valid = false;
+      } else {
+        newErrors["__email"] = null;
+      }
     }
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return valid;
@@ -94,6 +281,26 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
 
   const handleNext = () => {
     if (!validateStep()) return;
+
+    // Honor "go_to_step" or "end_form" logic on visible fields
+    for (const f of visibleFields) {
+      for (const rule of f.logic ?? []) {
+        if (rule.action !== "go_to_step" && rule.action !== "end_form") continue;
+        if (!matchRule(rule, answers)) continue;
+        if (rule.action === "end_form") {
+          void handleSubmit();
+          return;
+        }
+        if (rule.action === "go_to_step" && rule.targetStep) {
+          const idx = stepKeys.indexOf(rule.targetStep);
+          if (idx >= 0) {
+            setStepIndex(idx);
+            return;
+          }
+        }
+      }
+    }
+
     if (isLastStep) {
       void handleSubmit();
     } else {
@@ -120,6 +327,9 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
           answers,
           startedAt: startTimeRef.current ?? Date.now(),
           metadata: collectClientMetadata(),
+          sessionId: sessionIdRef.current,
+          hidden,
+          respondentEmail: form.collectEmail ? respondentEmail : undefined,
         }),
       });
       const data = await res.json();
@@ -146,11 +356,11 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
     );
   }
 
+  const submitText = form.settings.submitButtonText || "Submit";
+
   return (
     <div
-      className={cn(
-        "rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-9",
-      )}
+      className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-9"
       style={{ backgroundColor: form.theme.backgroundColor }}
     >
       {useMultiStep && form.settings.showProgressBar && (
@@ -168,35 +378,64 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
       {stepIndex === 0 && (
         <div className="mb-7 space-y-2">
           <h1 className="text-balance text-2xl font-semibold tracking-tightish sm:text-3xl">
-            {form.title}
+            {title}
           </h1>
-          {form.description && (
+          {description && (
             <p className="text-pretty text-sm leading-relaxed text-muted-foreground">
-              {form.description}
+              {description}
             </p>
           )}
         </div>
       )}
 
-      <div
-        key={currentStep}
-        className="space-y-6 animate-fade-in"
-      >
+      <div key={currentStep} className="space-y-6 animate-fade-in">
         {visibleFields.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             This step has no visible fields.
           </p>
         ) : (
           visibleFields.map((field) => (
-            <FieldRenderer
-              key={field.id}
-              field={field}
-              value={answers[field.id]}
-              onChange={(v) => onValueChange(field.id, v)}
-              error={errors[field.id]}
-              primaryColor={form.theme.primaryColor}
-            />
+            <div key={field.id} className="space-y-1">
+              {numbering.has(field.id) && field.type !== "section_heading" && (
+                <div className="text-[11px] font-medium tabular-nums tracking-wider text-muted-foreground/70">
+                  Question {numbering.get(field.id)}
+                </div>
+              )}
+              <FieldRenderer
+                field={field}
+                value={answers[field.id]}
+                onChange={(v) => onValueChange(field.id, v)}
+                onFocus={() => onFieldFocus(field.id)}
+                onBlur={() => onFieldBlur(field.id)}
+                error={errors[field.id]}
+                primaryColor={form.theme.primaryColor}
+              />
+            </div>
           ))
+        )}
+
+        {form.collectEmail && isLastStep && (
+          <div className="space-y-2">
+            <Label htmlFor="ff-respondent-email" className="text-base font-medium">
+              Your email
+              <span className="ml-1 text-destructive">*</span>
+            </Label>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              We'll use this only to follow up on your response.
+            </p>
+            <Input
+              id="ff-respondent-email"
+              type="email"
+              value={respondentEmail}
+              onChange={(e) => setRespondentEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="h-11 text-base"
+              required
+            />
+            {errors["__email"] && (
+              <p className="text-sm text-destructive">{errors["__email"]}</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -230,7 +469,7 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
           {submitting ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : isLastStep ? (
-            "Submit"
+            submitText
           ) : (
             <>
               Next
@@ -269,7 +508,51 @@ function ThankYouScreen({
   );
 }
 
-function validateField(field: FormFieldDef, value: unknown): string | null {
+function matchRule(
+  rule: import("@/types/form").LogicRule,
+  answers: Record<string, unknown>,
+): boolean {
+  const value = answers[rule.sourceFieldId];
+  switch (rule.operator) {
+    case "is_empty":
+      return (
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0)
+      );
+    case "is_not_empty":
+      return !(
+        value === null ||
+        value === undefined ||
+        value === "" ||
+        (Array.isArray(value) && value.length === 0)
+      );
+    case "equals":
+      if (Array.isArray(value)) return value.includes(rule.value as string);
+      return String(value ?? "") === String(rule.value ?? "");
+    case "not_equals":
+      if (Array.isArray(value)) return !value.includes(rule.value as string);
+      return String(value ?? "") !== String(rule.value ?? "");
+    case "contains":
+      if (Array.isArray(value)) return value.includes(rule.value as string);
+      return String(value ?? "").includes(String(rule.value ?? ""));
+    case "not_contains":
+      if (Array.isArray(value)) return !value.includes(rule.value as string);
+      return !String(value ?? "").includes(String(rule.value ?? ""));
+    case "greater_than":
+      return Number(value) > Number(rule.value);
+    case "less_than":
+      return Number(value) < Number(rule.value);
+    default:
+      return false;
+  }
+}
+
+function validateField(
+  field: FormFieldDef,
+  value: unknown,
+): string | null {
   const isEmpty =
     value === null ||
     value === undefined ||
@@ -355,7 +638,13 @@ function collectClientMetadata() {
 
 async function sendEvent(
   slug: string,
-  body: { eventType: string; step?: number; metadata?: unknown },
+  body: {
+    eventType: string;
+    step?: number;
+    fieldId?: string;
+    sessionId?: string;
+    metadata?: unknown;
+  },
 ) {
   try {
     await fetch(`/api/public/forms/${slug}/events`, {

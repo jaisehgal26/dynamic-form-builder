@@ -72,7 +72,7 @@ const logicRuleSchema = z.object({
     "less_than",
   ]),
   value: z.union([z.string(), z.number(), z.boolean()]).optional(),
-  action: z.enum(["show", "hide", "go_to_step"]),
+  action: z.enum(["show", "hide", "go_to_step", "end_form"]),
   targetStep: z.number().int().optional(),
 });
 
@@ -96,10 +96,12 @@ export const fullFormSchema = z.object({
   settings: z.object({
     multiStep: z.boolean(),
     showProgressBar: z.boolean(),
+    showQuestionNumbers: z.boolean().default(false),
     allowMultipleSubmissions: z.boolean(),
     thankYouMessage: z.string(),
     redirectUrl: z.string().url().optional().or(z.literal("")).optional(),
     closedMessage: z.string().optional(),
+    submitButtonText: z.string().max(40).optional(),
   }),
   theme: z.object({
     primaryColor: z.string(),
@@ -107,6 +109,16 @@ export const fullFormSchema = z.object({
     font: z.string(),
   }),
   fields: z.array(fieldSchema),
+  // Optional access fields managed by builder Settings tab
+  access: z
+    .object({
+      password: z.string().min(4).max(60).nullable().optional(),
+      clearPassword: z.boolean().optional(),
+      expiresAt: z.number().int().nullable().optional(),
+      responseLimit: z.number().int().positive().nullable().optional(),
+      collectEmail: z.boolean().optional(),
+    })
+    .optional(),
 });
 
 export const reorderFieldsSchema = z.object({
@@ -118,9 +130,25 @@ export const createFieldSchema = fieldSchema.partial({ id: true, position: true 
 export const updateFieldSchema = fieldSchema.partial();
 
 export const formEventSchema = z.object({
-  eventType: z.enum(["view", "start", "step_view", "submit"]),
+  eventType: z.enum([
+    "view",
+    "start",
+    "step_view",
+    "field_focus",
+    "field_blur",
+    "field_change",
+    "field_error",
+    "submit",
+    "drop_off",
+  ]),
   step: z.number().int().optional(),
+  fieldId: z.string().optional(),
+  sessionId: z.string().optional(),
   metadata: z.record(z.unknown()).optional(),
+});
+
+export const verifyPasswordSchema = z.object({
+  password: z.string().min(1).max(200),
 });
 
 export const submitResponseSchema = z.object({
@@ -128,6 +156,9 @@ export const submitResponseSchema = z.object({
     z.union([z.string(), z.array(z.string()), z.number(), z.boolean(), z.null()]),
   ),
   startedAt: z.number().optional(),
+  sessionId: z.string().optional(),
+  hidden: z.record(z.string()).optional(),
+  respondentEmail: z.string().email().optional().nullable(),
   metadata: z.record(z.unknown()).optional(),
 });
 

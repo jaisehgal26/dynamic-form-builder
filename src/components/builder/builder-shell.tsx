@@ -6,6 +6,7 @@ import {
   BarChart3,
   Check,
   CloudOff,
+  Code2,
   Download,
   ExternalLink,
   Eye,
@@ -13,17 +14,18 @@ import {
   FileJson,
   Inbox,
   Loader2,
+  Redo2,
+  Undo2,
   Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBuilderStore } from "@/stores/use-builder-store";
 import { useDebounce } from "@/hooks/use-debounce";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -31,17 +33,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { CopyButton } from "@/components/ui/copy-button";
 import { FieldPalette } from "./field-palette";
 import { BuilderCanvas } from "./builder-canvas";
 import { FieldEditorPanel } from "./field-editor-panel";
 import { FormPreview } from "./form-preview";
+import { SettingsPanel } from "./settings-panel";
 import type {
   FormFieldDef,
   FormSettings,
   FormTheme,
 } from "@/types/form";
-import { cn, formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 
 interface BuilderShellProps {
   formId: string;
@@ -52,6 +60,12 @@ interface BuilderShellProps {
   initialFields: FormFieldDef[];
   initialSettings: FormSettings;
   initialTheme: FormTheme;
+  initialAccess: {
+    hasPassword: boolean;
+    expiresAt: number | null;
+    responseLimit: number | null;
+    collectEmail: boolean;
+  };
 }
 
 export function BuilderShell(props: BuilderShellProps) {
@@ -62,6 +76,7 @@ export function BuilderShell(props: BuilderShellProps) {
   const description = useBuilderStore((s) => s.description);
   const settings = useBuilderStore((s) => s.settings);
   const theme = useBuilderStore((s) => s.theme);
+  const access = useBuilderStore((s) => s.access);
   const status = useBuilderStore((s) => s.status);
   const slug = useBuilderStore((s) => s.slug);
   const isDirty = useBuilderStore((s) => s.isDirty);
@@ -73,8 +88,16 @@ export function BuilderShell(props: BuilderShellProps) {
   const setTitle = useBuilderStore((s) => s.setTitle);
   const setDescription = useBuilderStore((s) => s.setDescription);
   const importSchema = useBuilderStore((s) => s.importSchema);
+  const undo = useBuilderStore((s) => s.undo);
+  const redo = useBuilderStore((s) => s.redo);
+  const past = useBuilderStore((s) => s.past);
+  const future = useBuilderStore((s) => s.future);
+  const selectField = useBuilderStore((s) => s.selectField);
+  const selectedFieldId = useBuilderStore((s) => s.selectedFieldId);
+  const deleteField = useBuilderStore((s) => s.deleteField);
 
   const [shareOpen, setShareOpen] = React.useState(false);
+  const [embedOpen, setEmbedOpen] = React.useState(false);
   const [schemaOpen, setSchemaOpen] = React.useState(false);
   const [publishing, setPublishing] = React.useState(false);
 
@@ -88,6 +111,14 @@ export function BuilderShell(props: BuilderShellProps) {
       fields: props.initialFields,
       settings: props.initialSettings,
       theme: props.initialTheme,
+      access: {
+        hasPassword: props.initialAccess.hasPassword,
+        expiresAt: props.initialAccess.expiresAt,
+        responseLimit: props.initialAccess.responseLimit,
+        collectEmail: props.initialAccess.collectEmail,
+        password: null,
+        clearPassword: false,
+      },
     });
   }, [
     init,
@@ -99,11 +130,15 @@ export function BuilderShell(props: BuilderShellProps) {
     props.initialFields,
     props.initialSettings,
     props.initialTheme,
+    props.initialAccess.hasPassword,
+    props.initialAccess.expiresAt,
+    props.initialAccess.responseLimit,
+    props.initialAccess.collectEmail,
   ]);
 
   const snapshot = React.useMemo(
-    () => ({ title, description, fields, settings, theme }),
-    [title, description, fields, settings, theme],
+    () => ({ title, description, fields, settings, theme, access }),
+    [title, description, fields, settings, theme, access],
   );
 
   const debouncedSnapshot = useDebounce(snapshot, 800);
@@ -125,6 +160,13 @@ export function BuilderShell(props: BuilderShellProps) {
             settings: snap.settings,
             theme: snap.theme,
             fields: snap.fields,
+            access: {
+              password: snap.access.password,
+              clearPassword: snap.access.clearPassword,
+              expiresAt: snap.access.expiresAt,
+              responseLimit: snap.access.responseLimit,
+              collectEmail: snap.access.collectEmail,
+            },
           }),
         });
         if (!res.ok) {
@@ -146,6 +188,59 @@ export function BuilderShell(props: BuilderShellProps) {
     if (!isDirty) return;
     saveRef.current(debouncedSnapshot);
   }, [debouncedSnapshot, isDirty]);
+
+  // Keyboard shortcuts: Cmd/Ctrl+Z, Cmd/Ctrl+Shift+Z, Cmd/Ctrl+S, Delete, Esc
+  useKeyboardShortcuts([
+    {
+      key: "z",
+      meta: true,
+      handler: () => {
+        undo();
+      },
+    },
+    {
+      key: "z",
+      meta: true,
+      shift: true,
+      handler: () => {
+        redo();
+      },
+    },
+    {
+      key: "s",
+      meta: true,
+      allowInInput: true,
+      handler: () => {
+        if (isDirty) saveRef.current(snapshot);
+        toast.success("Saved");
+      },
+    },
+    {
+      key: "Backspace",
+      handler: () => {
+        if (selectedFieldId) deleteField(selectedFieldId);
+      },
+    },
+    {
+      key: "Delete",
+      handler: () => {
+        if (selectedFieldId) deleteField(selectedFieldId);
+      },
+    },
+    {
+      key: "Escape",
+      allowInInput: true,
+      handler: () => {
+        if (
+          document.activeElement instanceof HTMLElement &&
+          document.activeElement.tagName !== "BODY"
+        ) {
+          (document.activeElement as HTMLElement).blur();
+        }
+        selectField(null);
+      },
+    },
+  ]);
 
   const handlePublish = async () => {
     setPublishing(true);
@@ -211,6 +306,37 @@ export function BuilderShell(props: BuilderShellProps) {
           />
         </div>
         <div className="flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={undo}
+                disabled={past.length === 0}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Undo"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Undo (⌘Z)</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={redo}
+                disabled={future.length === 0}
+                className="text-muted-foreground hover:text-foreground"
+                aria-label="Redo"
+              >
+                <Redo2 className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
+          </Tooltip>
+          <span className="mx-1 hidden h-4 w-px bg-border/70 sm:block" />
           <Button
             size="sm"
             variant="ghost"
@@ -243,14 +369,25 @@ export function BuilderShell(props: BuilderShellProps) {
             Schema
           </Button>
           {status === "published" && (
-            <Button
-              size="sm"
-              variant="subtle"
-              onClick={() => setShareOpen(true)}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              Share
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEmbedOpen(true)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <Code2 className="h-3.5 w-3.5" />
+                Embed
+              </Button>
+              <Button
+                size="sm"
+                variant="subtle"
+                onClick={() => setShareOpen(true)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                Share
+              </Button>
+            </>
           )}
           {status === "published" ? (
             <Button
@@ -318,7 +455,7 @@ export function BuilderShell(props: BuilderShellProps) {
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-0 resize-none border-transparent bg-transparent px-0 py-0 text-sm leading-relaxed text-muted-foreground shadow-none focus-visible:bg-transparent focus-visible:ring-0"
                   rows={1}
-                  placeholder="Add a description (optional)"
+                  placeholder="Add a description (optional). Tip: use {{name}} to greet visitors."
                 />
               </div>
               <BuilderCanvas />
@@ -357,10 +494,21 @@ export function BuilderShell(props: BuilderShellProps) {
         url={publicUrl}
         published={status === "published"}
       />
+      <EmbedDialog
+        open={embedOpen}
+        onOpenChange={setEmbedOpen}
+        url={publicUrl}
+      />
       <SchemaDialog
         open={schemaOpen}
         onOpenChange={setSchemaOpen}
-        snapshot={snapshot}
+        snapshot={{
+          title: snapshot.title,
+          description: snapshot.description,
+          fields: snapshot.fields,
+          settings: snapshot.settings,
+          theme: snapshot.theme,
+        }}
         onImport={(s) => importSchema(s)}
       />
     </div>
@@ -450,6 +598,46 @@ function ShareDialog({
   );
 }
 
+function EmbedDialog({
+  open,
+  onOpenChange,
+  url,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  url: string;
+}) {
+  const snippet = `<iframe src="${url}" width="100%" height="700" frameborder="0" style="border:0; max-width: 720px;"></iframe>`;
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Embed this form</DialogTitle>
+          <DialogDescription>
+            Copy and paste this snippet into your website. The iframe is
+            responsive — adjust height to taste.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-2">
+          <Textarea
+            value={snippet}
+            readOnly
+            rows={3}
+            className="font-mono text-xs leading-relaxed"
+          />
+          <CopyButton value={snippet} size="icon" />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Tip: For dynamic prefill, append query params to the iframe src — e.g.{" "}
+          <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">
+            ?name=Jai&utm_source=blog
+          </code>
+        </p>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SchemaDialog({
   open,
   onOpenChange,
@@ -484,11 +672,18 @@ function SchemaDialog({
   const handleImport = () => {
     try {
       const parsed = JSON.parse(text);
+      // Basic shape validation — full Zod validation happens server-side on save.
+      if (
+        parsed.fields &&
+        !Array.isArray(parsed.fields)
+      ) {
+        throw new Error("`fields` must be an array.");
+      }
       onImport(parsed);
       toast.success("Schema imported");
       onOpenChange(false);
-    } catch {
-      toast.error("Invalid JSON");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Invalid JSON");
     }
   };
 
@@ -529,165 +724,5 @@ function SchemaDialog({
         </div>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function SettingsPanel() {
-  const settings = useBuilderStore((s) => s.settings);
-  const theme = useBuilderStore((s) => s.theme);
-  const updateSettings = useBuilderStore((s) => s.updateSettings);
-  const updateTheme = useBuilderStore((s) => s.updateTheme);
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <SectionCard
-        title="Form behavior"
-        description="Control how respondents move through your form."
-      >
-        <SettingRow
-          label="Multi-step form"
-          description="Break the form into multiple pages."
-        >
-          <Switch
-            checked={settings.multiStep}
-            onCheckedChange={(v) => updateSettings({ multiStep: !!v })}
-          />
-        </SettingRow>
-        <SettingRow
-          label="Show progress bar"
-          description="Display progress to respondents."
-        >
-          <Switch
-            checked={settings.showProgressBar}
-            onCheckedChange={(v) => updateSettings({ showProgressBar: !!v })}
-          />
-        </SettingRow>
-        <SettingRow
-          label="Allow multiple submissions"
-          description="Respondents can submit more than once."
-        >
-          <Switch
-            checked={settings.allowMultipleSubmissions}
-            onCheckedChange={(v) =>
-              updateSettings({ allowMultipleSubmissions: !!v })
-            }
-          />
-        </SettingRow>
-        <div className="space-y-1.5 pt-2">
-          <Label>Thank-you message</Label>
-          <Textarea
-            value={settings.thankYouMessage}
-            onChange={(e) =>
-              updateSettings({ thankYouMessage: e.target.value })
-            }
-            rows={2}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Redirect URL (optional)</Label>
-          <Input
-            placeholder="https://example.com/thanks"
-            value={settings.redirectUrl ?? ""}
-            onChange={(e) =>
-              updateSettings({ redirectUrl: e.target.value || undefined })
-            }
-          />
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        title="Appearance"
-        description="Customize how your public form looks."
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-1.5">
-            <Label>Primary color</Label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={theme.primaryColor}
-                onChange={(e) =>
-                  updateTheme({ primaryColor: e.target.value })
-                }
-                className="h-10 w-12 cursor-pointer rounded-md border border-input bg-background"
-              />
-              <Input
-                value={theme.primaryColor}
-                onChange={(e) =>
-                  updateTheme({ primaryColor: e.target.value })
-                }
-                className="font-mono text-xs"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Background</Label>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={theme.backgroundColor}
-                onChange={(e) =>
-                  updateTheme({ backgroundColor: e.target.value })
-                }
-                className="h-10 w-12 cursor-pointer rounded-md border border-input bg-background"
-              />
-              <Input
-                value={theme.backgroundColor}
-                onChange={(e) =>
-                  updateTheme({ backgroundColor: e.target.value })
-                }
-                className="font-mono text-xs"
-              />
-            </div>
-          </div>
-        </div>
-      </SectionCard>
-    </div>
-  );
-}
-
-function SectionCard({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-4 rounded-xl border border-border/70 bg-card p-6 shadow-xs">
-      <div className="space-y-0.5">
-        <h3 className="text-sm font-medium tracking-tightish">{title}</h3>
-        {description && (
-          <p className="text-xs text-muted-foreground">{description}</p>
-        )}
-      </div>
-      <div className="space-y-3">{children}</div>
-    </section>
-  );
-}
-
-function SettingRow({
-  label,
-  description,
-  children,
-}: {
-  label: string;
-  description: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex items-center justify-between gap-4 rounded-lg border border-border/60 bg-background px-3.5 py-2.5",
-      )}
-    >
-      <div className="min-w-0">
-        <div className="text-sm font-medium">{label}</div>
-        <div className="text-xs text-muted-foreground">{description}</div>
-      </div>
-      {children}
-    </div>
   );
 }

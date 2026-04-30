@@ -5,14 +5,24 @@ import type {
   ResponseAnswers,
 } from "@/types/response";
 
+export interface EventInput {
+  eventType: string;
+  step: number | null;
+  fieldId: string | null;
+  sessionId: string | null;
+  createdAt: number;
+}
+
+export interface ResponseInput {
+  submittedAt: number;
+  completionTimeSeconds: number | null;
+  answers: ResponseAnswers;
+}
+
 interface ComputeAnalyticsInput {
   fields: FormFieldDef[];
-  events: { eventType: string; step: number | null; createdAt: number }[];
-  responses: {
-    submittedAt: number;
-    completionTimeSeconds: number | null;
-    answers: ResponseAnswers;
-  }[];
+  events: EventInput[];
+  responses: ResponseInput[];
   rangeDays?: number;
 }
 
@@ -118,7 +128,8 @@ export function computeAnalytics({
         .filter((n) => !isNaN(n) && n > 0);
       if (nums.length) {
         q.ratingAverage =
-          Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) / 10;
+          Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 10) /
+          10;
       }
     }
 
@@ -138,6 +149,32 @@ export function computeAnalytics({
       }
     }
 
+    if (field.type === "short_text" || field.type === "long_text") {
+      const recent: string[] = [];
+      const wordFreq = new Map<string, number>();
+      for (const v of values) {
+        if (typeof v !== "string" || !v.trim()) continue;
+        if (recent.length < 5) recent.push(v.trim());
+        const words = v
+          .toLowerCase()
+          .replace(/[^\p{L}\p{N}\s]/gu, " ")
+          .split(/\s+/)
+          .filter(
+            (w) =>
+              w.length > 3 &&
+              !STOP_WORDS.has(w),
+          );
+        for (const w of words) {
+          wordFreq.set(w, (wordFreq.get(w) ?? 0) + 1);
+        }
+      }
+      q.recentAnswers = recent;
+      q.topWords = Array.from(wordFreq.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+        .map(([word, count]) => ({ word, count }));
+    }
+
     return q;
   });
 
@@ -150,5 +187,186 @@ export function computeAnalytics({
     responsesByDay,
     dropoffByStep,
     questions,
+  };
+}
+
+const STOP_WORDS = new Set([
+  "the", "and", "for", "are", "but", "not", "you", "all", "can", "had",
+  "her", "was", "one", "our", "out", "day", "get", "has", "him", "his",
+  "how", "man", "new", "now", "old", "see", "two", "way", "who", "boy",
+  "did", "its", "let", "put", "say", "she", "too", "use", "with", "from",
+  "this", "that", "have", "they", "your", "what", "would", "there", "their",
+  "which", "about", "just", "into", "than", "more", "very", "some", "like",
+  "when", "these", "want", "been", "were", "could", "after", "then",
+]);
+
+export interface FunnelStep {
+  step: number;
+  views: number;
+  /** Percentage retention vs first step. 0–100. */
+  retention: number;
+  /** Drop-off vs previous step (positive = lost). 0–100. */
+  dropFromPrev: number;
+}
+
+export interface FunnelSummary {
+  steps: FunnelStep[];
+  /** % of starts that reached submit. */
+  completionRate: number;
+  /** Step where most respondents dropped off, if any. */
+  worstStep: number | null;
+}
+
+export function computeFunnel({
+  events,
+  totalSubmissions,
+}: {
+  fields: FormFieldDef[];
+  events: EventInput[];
+  totalSubmissions: number;
+}): FunnelSummary {
+  const stepCounts = new Map<number, number>();
+  for (const e of events) {
+    if (e.eventType !== "step_view" || e.step == null) continue;
+    stepCounts.set(e.step, (stepCounts.get(e.step) ?? 0) + 1);
+  }
+
+  const steps = Array.from(stepCounts.keys()).sort((a, b) => a - b);
+  const first = steps[0] ? stepCounts.get(steps[0]) ?? 0 : 0;
+
+  const out: FunnelStep[] = steps.map((step, i) => {
+    const views = stepCounts.get(step) ?? 0;
+    const prev = i > 0 ? stepCounts.get(steps[i - 1]) ?? 0 : views;
+    return {
+      step,
+      views,
+      retention: first > 0 ? Math.round((views / first) * 100) : 0,
+      dropFromPrev:
+        prev > 0 ? Math.max(0, Math.round(((prev - views) / prev) * 100)) : 0,
+    };
+  });
+
+  const completionRate =
+    first > 0 ? Math.round((totalSubmissions / first) * 100) : 0;
+
+  let worstStep: number | null = null;
+  let worstDrop = 0;
+  for (const s of out) {
+    if (s.dropFromPrev > worstDrop) {
+      worstDrop = s.dropFromPrev;
+      worstStep = s.step;
+    }
+  }
+
+  return { steps: out, completionRate, worstStep };
+}
+
+export interface InteractionInsights {
+  mostInteractedField: { fieldId: string; label: string; count: number } | null;
+  mostErroredField: { fieldId: string; label: string; count: number } | null;
+  worstStep: { step: number; dropOffs: number } | null;
+  avgTimePerStepSeconds: { step: number; avgSeconds: number }[];
+}
+
+export function computeInteractionInsights({
+  fields,
+  events,
+}: {
+  fields: FormFieldDef[];
+  events: EventInput[];
+}): InteractionInsights {
+  const byField = new Map<string, number>();
+  const errorByField = new Map<string, number>();
+  const dropOffs = new Map<number, number>();
+
+  // Time per step: per-session, time between step_view events.
+  const sessionStepTimes = new Map<string, Map<number, number>>(); // session -> step -> ms-spent
+  const lastByStepBySession = new Map<string, { step: number; ts: number }>();
+
+  for (const e of events) {
+    if (e.eventType === "field_focus" && e.fieldId) {
+      byField.set(e.fieldId, (byField.get(e.fieldId) ?? 0) + 1);
+    }
+    if (e.eventType === "field_change" && e.fieldId) {
+      byField.set(e.fieldId, (byField.get(e.fieldId) ?? 0) + 1);
+    }
+    if (e.eventType === "field_error" && e.fieldId) {
+      errorByField.set(
+        e.fieldId,
+        (errorByField.get(e.fieldId) ?? 0) + 1,
+      );
+    }
+    if (e.eventType === "drop_off" && e.step != null) {
+      dropOffs.set(e.step, (dropOffs.get(e.step) ?? 0) + 1);
+    }
+    if (e.eventType === "step_view" && e.step != null && e.sessionId) {
+      const last = lastByStepBySession.get(e.sessionId);
+      if (last && last.step !== e.step) {
+        const elapsed = Math.max(0, e.createdAt - last.ts);
+        const sm =
+          sessionStepTimes.get(e.sessionId) ??
+          new Map<number, number>();
+        sm.set(last.step, (sm.get(last.step) ?? 0) + elapsed);
+        sessionStepTimes.set(e.sessionId, sm);
+      }
+      lastByStepBySession.set(e.sessionId, { step: e.step, ts: e.createdAt });
+    }
+  }
+
+  const fieldLabel = (id: string) =>
+    fields.find((f) => f.id === id)?.label ?? id;
+
+  const top = (m: Map<string, number>) => {
+    let best: [string, number] | null = null;
+    for (const entry of m.entries()) {
+      if (!best || entry[1] > best[1]) best = entry;
+    }
+    return best;
+  };
+
+  const topInteract = top(byField);
+  const topError = top(errorByField);
+
+  let worstStep: { step: number; dropOffs: number } | null = null;
+  for (const [step, count] of dropOffs.entries()) {
+    if (!worstStep || count > worstStep.dropOffs) {
+      worstStep = { step, dropOffs: count };
+    }
+  }
+
+  // Aggregate avg time per step
+  const stepSums = new Map<number, { sum: number; n: number }>();
+  for (const sm of sessionStepTimes.values()) {
+    for (const [step, ms] of sm.entries()) {
+      const cur = stepSums.get(step) ?? { sum: 0, n: 0 };
+      cur.sum += ms;
+      cur.n += 1;
+      stepSums.set(step, cur);
+    }
+  }
+  const avgTimePerStepSeconds = Array.from(stepSums.entries())
+    .sort((a, b) => a[0] - b[0])
+    .map(([step, v]) => ({
+      step,
+      avgSeconds: v.n > 0 ? Math.round(v.sum / v.n / 1000) : 0,
+    }));
+
+  return {
+    mostInteractedField: topInteract
+      ? {
+          fieldId: topInteract[0],
+          label: fieldLabel(topInteract[0]),
+          count: topInteract[1],
+        }
+      : null,
+    mostErroredField: topError
+      ? {
+          fieldId: topError[0],
+          label: fieldLabel(topError[0]),
+          count: topError[1],
+        }
+      : null,
+    worstStep,
+    avgTimePerStepSeconds,
   };
 }

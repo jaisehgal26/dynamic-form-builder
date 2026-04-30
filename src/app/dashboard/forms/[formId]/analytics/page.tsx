@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { formEvents, formResponses } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -10,7 +10,11 @@ import {
   loadFormForOwner,
 } from "@/lib/forms.server";
 import { safeJsonParse } from "@/lib/utils";
-import { computeAnalytics } from "@/lib/analytics";
+import {
+  computeAnalytics,
+  computeFunnel,
+  computeInteractionInsights,
+} from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -40,18 +44,32 @@ export default async function AnalyticsPage({
     .from(formResponses)
     .where(eq(formResponses.formId, formId));
 
+  const eventInputs = events.map((e) => ({
+    eventType: e.eventType,
+    step: e.step,
+    fieldId: e.fieldId,
+    sessionId: e.sessionId,
+    createdAt: Number(e.createdAt),
+  }));
+
   const analytics = computeAnalytics({
     fields,
-    events: events.map((e) => ({
-      eventType: e.eventType,
-      step: e.step,
-      createdAt: Number(e.createdAt),
-    })),
+    events: eventInputs,
     responses: responses.map((r) => ({
       submittedAt: Number(r.submittedAt),
       completionTimeSeconds: r.completionTimeSeconds,
       answers: safeJsonParse(r.answersJson, {}),
     })),
+  });
+
+  const funnel = computeFunnel({
+    fields,
+    events: eventInputs,
+    totalSubmissions: responses.length,
+  });
+  const insights = computeInteractionInsights({
+    fields,
+    events: eventInputs,
   });
 
   return (
@@ -65,7 +83,9 @@ export default async function AnalyticsPage({
       <AnalyticsDashboard
         formId={formId}
         formTitle={form.title}
-        analytics={analytics}
+        initialAnalytics={analytics}
+        initialFunnel={funnel}
+        initialInsights={insights}
       />
     </AppShell>
   );

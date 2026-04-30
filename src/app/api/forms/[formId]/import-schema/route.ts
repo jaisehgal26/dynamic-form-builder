@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
-import bcrypt from "bcryptjs";
 import { db } from "@/db/client";
 import { formFields, forms } from "@/db/schema";
 import { requireSession } from "@/lib/auth";
@@ -9,7 +8,11 @@ import { fullFormSchema } from "@/lib/validations";
 import { loadFormForOwner } from "@/lib/forms.server";
 import { generateFieldId } from "@/lib/slug";
 
-export async function PATCH(
+/**
+ * Strict server-side schema import. Same validation as PATCH /schema, but
+ * without access fields — those are managed in the builder Settings tab.
+ */
+export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ formId: string }> },
 ) {
@@ -17,30 +20,20 @@ export async function PATCH(
     const session = await requireSession();
     const { formId } = await params;
     await loadFormForOwner(formId, session.userId);
-    const body = await req.json();
-    const data = fullFormSchema.parse(body);
-    const now = new Date();
 
-    // Compute access updates
-    const accessUpdate: Record<string, unknown> = {};
-    if (data.access) {
-      const { password, clearPassword, expiresAt, responseLimit, collectEmail } =
-        data.access;
-      if (clearPassword) {
-        accessUpdate.passwordHash = null;
-      } else if (typeof password === "string" && password.length > 0) {
-        accessUpdate.passwordHash = await bcrypt.hash(password, 10);
-      }
-      if (expiresAt !== undefined) {
-        accessUpdate.expiresAt = expiresAt ? new Date(expiresAt) : null;
-      }
-      if (responseLimit !== undefined) {
-        accessUpdate.responseLimit = responseLimit ?? null;
-      }
-      if (collectEmail !== undefined) {
-        accessUpdate.collectEmail = !!collectEmail;
-      }
+    const body = await req.json();
+    const parsed = fullFormSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid schema. Please fix and try again.",
+          issues: parsed.error.flatten(),
+        },
+        { status: 422 },
+      );
     }
+    const data = parsed.data;
+    const now = new Date();
 
     await db.transaction(async (tx) => {
       await tx
@@ -50,12 +43,7 @@ export async function PATCH(
           description: data.description ?? null,
           themeJson: JSON.stringify(data.theme),
           settingsJson: JSON.stringify(data.settings),
-          schemaJson: JSON.stringify({
-            title: data.title,
-            description: data.description ?? "",
-          }),
           updatedAt: now,
-          ...accessUpdate,
         })
         .where(and(eq(forms.id, formId), eq(forms.userId, session.userId)));
 
@@ -86,7 +74,7 @@ export async function PATCH(
       }
     });
 
-    return NextResponse.json({ ok: true, savedAt: now.getTime() });
+    return NextResponse.json({ ok: true, importedAt: now.getTime() });
   } catch (err) {
     return handleApiError(err);
   }

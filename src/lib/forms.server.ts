@@ -1,7 +1,7 @@
 import "server-only";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { formFields, forms } from "@/db/schema";
+import { formFields, formResponses, forms } from "@/db/schema";
 import { ApiError } from "@/lib/api";
 import {
   DEFAULT_SETTINGS,
@@ -10,6 +10,7 @@ import {
   type FormSettings,
   type FormTheme,
   type PublicFormPayload,
+  type PublicAccessState,
 } from "@/types/form";
 import { safeJsonParse } from "@/lib/utils";
 
@@ -72,19 +73,82 @@ export function readFormTheme(form: typeof forms.$inferSelect): FormTheme {
   };
 }
 
-export async function loadPublicForm(slug: string): Promise<PublicFormPayload | null> {
+export interface PublicFormResolution {
+  state: PublicAccessState;
+  /** Public payload — populated when state is "ok" or "password_required". */
+  form?: PublicFormPayload;
+  /** Required to display closed-message screen. */
+  closedMessage?: string;
+}
+
+export async function resolvePublicForm(
+  slug: string,
+): Promise<PublicFormResolution> {
   const form = await loadFormBySlug(slug);
-  if (!form || form.status !== "published") return null;
+  if (!form || form.status !== "published") {
+    return { state: "not_found" };
+  }
+
+  const settings = readFormSettings(form);
+
+  // Expiry check
+  if (form.expiresAt && Number(form.expiresAt) < Date.now()) {
+    return { state: "expired", closedMessage: settings.closedMessage };
+  }
+
+  // Response limit check
+  if (form.responseLimit && form.responseLimit > 0) {
+    const count = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(formResponses)
+      .where(eq(formResponses.formId, form.id));
+    const total = Number(count[0]?.count ?? 0);
+    if (total >= form.responseLimit) {
+      return { state: "limit_reached", closedMessage: settings.closedMessage };
+    }
+  }
+
   const fields = await loadFormFields(form.id);
+
+  // Password check is the responsibility of the page (after a token check),
+  // so we don't refuse here, just signal it.
+  if (form.passwordHash) {
+    return {
+      state: "password_required",
+      form: {
+        id: form.id,
+        slug: form.slug,
+        title: form.title,
+        description: form.description,
+        settings,
+        theme: readFormTheme(form),
+        fields: [],
+        collectEmail: !!form.collectEmail,
+      },
+    };
+  }
+
   return {
-    id: form.id,
-    slug: form.slug,
-    title: form.title,
-    description: form.description,
-    settings: readFormSettings(form),
-    theme: readFormTheme(form),
-    fields,
+    state: "ok",
+    form: {
+      id: form.id,
+      slug: form.slug,
+      title: form.title,
+      description: form.description,
+      settings,
+      theme: readFormTheme(form),
+      fields,
+      collectEmail: !!form.collectEmail,
+    },
   };
+}
+
+/** Backwards-compatible helper for code that just wants the form when it's ok. */
+export async function loadPublicForm(
+  slug: string,
+): Promise<PublicFormPayload | null> {
+  const r = await resolvePublicForm(slug);
+  return r.state === "ok" ? r.form ?? null : null;
 }
 
 export async function loadFormsForUser(userId: string) {

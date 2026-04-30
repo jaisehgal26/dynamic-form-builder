@@ -12,6 +12,38 @@ import { createDefaultField } from "@/lib/form-helpers";
 
 export type AutosaveStatus = "idle" | "saving" | "saved" | "error";
 
+interface AccessSettings {
+  /** A pending plaintext password set by the user; never stored as-is. */
+  password: string | null;
+  /** When true, the next save should clear the existing password. */
+  clearPassword: boolean;
+  /** True if the form already has a password configured server-side. */
+  hasPassword: boolean;
+  expiresAt: number | null;
+  responseLimit: number | null;
+  collectEmail: boolean;
+}
+
+const DEFAULT_ACCESS: AccessSettings = {
+  password: null,
+  clearPassword: false,
+  hasPassword: false,
+  expiresAt: null,
+  responseLimit: null,
+  collectEmail: false,
+};
+
+interface Snapshot {
+  title: string;
+  description: string;
+  fields: FormFieldDef[];
+  settings: FormSettings;
+  theme: FormTheme;
+  access: AccessSettings;
+}
+
+const HISTORY_LIMIT = 50;
+
 interface BuilderState {
   formId: string | null;
   title: string;
@@ -21,10 +53,15 @@ interface BuilderState {
   fields: FormFieldDef[];
   settings: FormSettings;
   theme: FormTheme;
+  access: AccessSettings;
   selectedFieldId: string | null;
   isDirty: boolean;
   autosaveStatus: AutosaveStatus;
   lastSavedAt: number | null;
+
+  // History for undo/redo
+  past: Snapshot[];
+  future: Snapshot[];
 
   init: (data: {
     formId: string;
@@ -35,6 +72,7 @@ interface BuilderState {
     fields: FormFieldDef[];
     settings: FormSettings;
     theme: FormTheme;
+    access?: Partial<AccessSettings>;
   }) => void;
   setTitle: (title: string) => void;
   setDescription: (description: string) => void;
@@ -47,6 +85,7 @@ interface BuilderState {
   reorderFields: (orderedIds: string[]) => void;
   updateSettings: (patch: Partial<FormSettings>) => void;
   updateTheme: (patch: Partial<FormTheme>) => void;
+  updateAccess: (patch: Partial<AccessSettings>) => void;
   importSchema: (schema: {
     title?: string;
     description?: string;
@@ -56,10 +95,40 @@ interface BuilderState {
   }) => void;
   setAutosaveStatus: (status: AutosaveStatus, savedAt?: number | null) => void;
   markClean: () => void;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 function reposition(fields: FormFieldDef[]): FormFieldDef[] {
   return fields.map((f, idx) => ({ ...f, position: idx }));
+}
+
+function snapshotOf(state: BuilderState): Snapshot {
+  return {
+    title: state.title,
+    description: state.description,
+    fields: state.fields,
+    settings: state.settings,
+    theme: state.theme,
+    access: state.access,
+  };
+}
+
+/** Produce a partial state update plus a fresh history entry. */
+function withHistory(
+  state: BuilderState,
+  patch: Partial<BuilderState>,
+): Partial<BuilderState> {
+  const past = [...state.past, snapshotOf(state)];
+  if (past.length > HISTORY_LIMIT) past.shift();
+  return {
+    ...patch,
+    past,
+    future: [],
+    isDirty: true,
+  };
 }
 
 export const useBuilderStore = create<BuilderState>((set, get) => ({
@@ -71,10 +140,13 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
   fields: [],
   settings: DEFAULT_SETTINGS,
   theme: DEFAULT_THEME,
+  access: DEFAULT_ACCESS,
   selectedFieldId: null,
   isDirty: false,
   autosaveStatus: "idle",
   lastSavedAt: null,
+  past: [],
+  future: [],
 
   init: (data) =>
     set({
@@ -90,14 +162,19 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       ),
       settings: { ...DEFAULT_SETTINGS, ...(data.settings ?? {}) },
       theme: { ...DEFAULT_THEME, ...(data.theme ?? {}) },
+      access: { ...DEFAULT_ACCESS, ...(data.access ?? {}) },
       selectedFieldId: null,
       isDirty: false,
       autosaveStatus: "idle",
       lastSavedAt: null,
+      past: [],
+      future: [],
     }),
 
-  setTitle: (title) => set({ title, isDirty: true }),
-  setDescription: (description) => set({ description, isDirty: true }),
+  setTitle: (title) =>
+    set((state) => withHistory(state, { title })),
+  setDescription: (description) =>
+    set((state) => withHistory(state, { description })),
   setStatus: (status) => set({ status }),
 
   selectField: (fieldId) => set({ selectedFieldId: fieldId }),
@@ -110,21 +187,23 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
       state.fields.length,
       targetStep,
     );
-    set({
-      fields: reposition([...state.fields, newField]),
-      selectedFieldId: newField.id,
-      isDirty: true,
-    });
+    set(
+      withHistory(state, {
+        fields: reposition([...state.fields, newField]),
+        selectedFieldId: newField.id,
+      }),
+    );
     return newField.id;
   },
 
   updateField: (fieldId, patch) =>
-    set((state) => ({
-      fields: state.fields.map((f) =>
-        f.id === fieldId ? { ...f, ...patch } : f,
-      ),
-      isDirty: true,
-    })),
+    set((state) =>
+      withHistory(state, {
+        fields: state.fields.map((f) =>
+          f.id === fieldId ? { ...f, ...patch } : f,
+        ),
+      }),
+    ),
 
   duplicateField: (fieldId) => {
     const state = get();
@@ -138,22 +217,22 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     };
     const next = [...state.fields];
     next.splice(idx + 1, 0, copy);
-    set({
-      fields: reposition(next),
-      selectedFieldId: copy.id,
-      isDirty: true,
-    });
+    set(
+      withHistory(state, {
+        fields: reposition(next),
+        selectedFieldId: copy.id,
+      }),
+    );
   },
 
   deleteField: (fieldId) =>
     set((state) => {
       const next = state.fields.filter((f) => f.id !== fieldId);
-      return {
+      return withHistory(state, {
         fields: reposition(next),
         selectedFieldId:
           state.selectedFieldId === fieldId ? null : state.selectedFieldId,
-        isDirty: true,
-      };
+      });
     }),
 
   reorderFields: (orderedIds) =>
@@ -163,41 +242,52 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
         .map((id) => map.get(id))
         .filter((f): f is FormFieldDef => !!f);
       const remaining = state.fields.filter((f) => !orderedIds.includes(f.id));
-      return {
+      return withHistory(state, {
         fields: reposition([...next, ...remaining]),
-        isDirty: true,
-      };
+      });
     }),
 
   updateSettings: (patch) =>
-    set((state) => ({
-      settings: { ...state.settings, ...patch },
-      isDirty: true,
-    })),
+    set((state) =>
+      withHistory(state, {
+        settings: { ...state.settings, ...patch },
+      }),
+    ),
 
   updateTheme: (patch) =>
-    set((state) => ({
-      theme: { ...state.theme, ...patch },
-      isDirty: true,
-    })),
+    set((state) =>
+      withHistory(state, {
+        theme: { ...state.theme, ...patch },
+      }),
+    ),
+
+  updateAccess: (patch) =>
+    set((state) =>
+      withHistory(state, {
+        access: { ...state.access, ...patch },
+      }),
+    ),
 
   importSchema: (schema) =>
-    set((state) => ({
-      title: schema.title ?? state.title,
-      description: schema.description ?? state.description,
-      settings: schema.settings
-        ? { ...DEFAULT_SETTINGS, ...schema.settings }
-        : state.settings,
-      theme: schema.theme ? { ...DEFAULT_THEME, ...schema.theme } : state.theme,
-      fields: schema.fields
-        ? reposition(
-            [...schema.fields].sort(
-              (a, b) => a.step - b.step || a.position - b.position,
-            ),
-          )
-        : state.fields,
-      isDirty: true,
-    })),
+    set((state) =>
+      withHistory(state, {
+        title: schema.title ?? state.title,
+        description: schema.description ?? state.description,
+        settings: schema.settings
+          ? { ...DEFAULT_SETTINGS, ...schema.settings }
+          : state.settings,
+        theme: schema.theme
+          ? { ...DEFAULT_THEME, ...schema.theme }
+          : state.theme,
+        fields: schema.fields
+          ? reposition(
+              [...schema.fields].sort(
+                (a, b) => a.step - b.step || a.position - b.position,
+              ),
+            )
+          : state.fields,
+      }),
+    ),
 
   setAutosaveStatus: (status, savedAt) =>
     set((state) => ({
@@ -207,4 +297,41 @@ export const useBuilderStore = create<BuilderState>((set, get) => ({
     })),
 
   markClean: () => set({ isDirty: false }),
+
+  undo: () => {
+    const state = get();
+    const last = state.past[state.past.length - 1];
+    if (!last) return;
+    set({
+      past: state.past.slice(0, -1),
+      future: [snapshotOf(state), ...state.future],
+      title: last.title,
+      description: last.description,
+      fields: last.fields,
+      settings: last.settings,
+      theme: last.theme,
+      access: last.access,
+      isDirty: true,
+    });
+  },
+
+  redo: () => {
+    const state = get();
+    const next = state.future[0];
+    if (!next) return;
+    set({
+      past: [...state.past, snapshotOf(state)],
+      future: state.future.slice(1),
+      title: next.title,
+      description: next.description,
+      fields: next.fields,
+      settings: next.settings,
+      theme: next.theme,
+      access: next.access,
+      isDirty: true,
+    });
+  },
+
+  canUndo: () => get().past.length > 0,
+  canRedo: () => get().future.length > 0,
 }));

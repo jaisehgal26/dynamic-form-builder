@@ -45,6 +45,12 @@ export default async function BuilderPage({
         initialFields={fields}
         initialSettings={settings}
         initialTheme={theme}
+        initialAccess={{
+          hasPassword: !!form.passwordHash,
+          expiresAt: form.expiresAt ? Number(form.expiresAt) : null,
+          responseLimit: form.responseLimit ?? null,
+          collectEmail: !!form.collectEmail,
+        }}
       />
     </AppShell>
   );

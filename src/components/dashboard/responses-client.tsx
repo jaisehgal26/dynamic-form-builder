@@ -4,21 +4,33 @@ import * as React from "react";
 import {
   ArrowLeft,
   BarChart3,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Inbox,
+  Loader2,
   Pencil,
+  Search,
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -30,6 +42,7 @@ import type { FormFieldDef } from "@/types/form";
 
 interface ResponseRow {
   id: string;
+  respondentEmail: string | null;
   answers: Record<string, unknown>;
   metadata: Record<string, unknown>;
   startedAt: number | null;
@@ -37,27 +50,113 @@ interface ResponseRow {
   completionTimeSeconds: number | null;
 }
 
+type DateRange = "all" | "7d" | "30d" | "today";
+
+const RANGE_LABEL: Record<DateRange, string> = {
+  all: "All time",
+  today: "Today",
+  "7d": "Last 7 days",
+  "30d": "Last 30 days",
+};
+
+function rangeToTimestamps(range: DateRange): { from?: number; to?: number } {
+  if (range === "all") return {};
+  const now = Date.now();
+  if (range === "today") {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return { from: start.getTime(), to: now };
+  }
+  const days = range === "7d" ? 7 : 30;
+  return { from: now - days * 24 * 60 * 60 * 1000, to: now };
+}
+
 export function ResponsesClient({
   formId,
   formTitle,
   fields,
-  responses: initial,
+  collectEmail,
+  initialResponses,
+  initialTotal,
+  pageSize,
 }: {
   formId: string;
   formTitle: string;
   fields: FormFieldDef[];
-  responses: ResponseRow[];
+  collectEmail: boolean;
+  initialResponses: ResponseRow[];
+  initialTotal: number;
+  pageSize: number;
 }) {
   const router = useRouter();
-  const [responses, setResponses] = React.useState(initial);
+  const [responses, setResponses] = React.useState(initialResponses);
+  const [total, setTotal] = React.useState(initialTotal);
+  const [page, setPage] = React.useState(1);
+  const [range, setRange] = React.useState<DateRange>("all");
+  const [query, setQuery] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
   const [open, setOpen] = React.useState<ResponseRow | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [deleting, setDeleting] = React.useState(false);
 
-  const inputFields = fields.filter(
-    (f) => f.type !== "section_heading" && f.type !== "page_break",
+  const inputFields = React.useMemo(
+    () =>
+      fields.filter(
+        (f) => f.type !== "section_heading" && f.type !== "page_break",
+      ),
+    [fields],
   );
-  const previewFields = inputFields.slice(0, 3);
+  const previewFields = React.useMemo(
+    () => inputFields.slice(0, collectEmail ? 2 : 3),
+    [inputFields, collectEmail],
+  );
+
+  // Refetch on page or range change
+  const fetchPage = React.useCallback(
+    async (nextPage: number, nextRange: DateRange) => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(nextPage));
+        const ts = rangeToTimestamps(nextRange);
+        if (ts.from) params.set("from", String(ts.from));
+        if (ts.to) params.set("to", String(ts.to));
+        const res = await fetch(
+          `/api/forms/${formId}/responses?${params.toString()}`,
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load");
+        setResponses(data.responses);
+        setTotal(data.total);
+        setPage(data.page);
+      } catch (err: unknown) {
+        toast.error(err instanceof Error ? err.message : "Failed to load");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [formId],
+  );
+
+  // Local search filters the visible page (server is paginated)
+  const filtered = React.useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return responses;
+    return responses.filter((r) => {
+      if (
+        r.respondentEmail &&
+        r.respondentEmail.toLowerCase().includes(q)
+      )
+        return true;
+      for (const f of inputFields) {
+        const v = r.answers[f.id];
+        if (v === null || v === undefined) continue;
+        const text = Array.isArray(v) ? v.join(" ") : String(v);
+        if (text.toLowerCase().includes(q)) return true;
+      }
+      return false;
+    });
+  }, [query, responses, inputFields]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -72,6 +171,7 @@ export function ResponsesClient({
         throw new Error(data.error || "Failed to delete");
       }
       setResponses((prev) => prev.filter((r) => r.id !== deleteId));
+      setTotal((t) => Math.max(0, t - 1));
       toast.success("Response deleted");
       setDeleteId(null);
       router.refresh();
@@ -82,9 +182,11 @@ export function ResponsesClient({
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
   return (
     <div className="mx-auto w-full max-w-6xl px-6 py-10">
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
           <Link
             href="/dashboard"
@@ -96,8 +198,7 @@ export function ResponsesClient({
             {formTitle}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {responses.length.toLocaleString()} response
-            {responses.length === 1 ? "" : "s"}
+            {total.toLocaleString()} response{total === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -116,19 +217,54 @@ export function ResponsesClient({
           <Button
             asChild
             size="sm"
-            variant={responses.length === 0 ? "outline" : "default"}
+            variant={total === 0 ? "outline" : "default"}
           >
             <a
               href={`/api/forms/${formId}/responses/export`}
               target="_blank"
               rel="noreferrer"
-              aria-disabled={responses.length === 0}
+              aria-disabled={total === 0}
             >
               <Download className="h-3.5 w-3.5" />
               Export CSV
             </a>
           </Button>
         </div>
+      </div>
+
+      {/* Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search this page…"
+            className="h-9 pl-9"
+          />
+        </div>
+        <Select
+          value={range}
+          onValueChange={(v) => {
+            const r = v as DateRange;
+            setRange(r);
+            void fetchPage(1, r);
+          }}
+        >
+          <SelectTrigger className="h-9 w-[160px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(["all", "today", "7d", "30d"] as DateRange[]).map((r) => (
+              <SelectItem key={r} value={r}>
+                {RANGE_LABEL[r]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {loading && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+        )}
       </div>
 
       <div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
@@ -138,12 +274,25 @@ export function ResponsesClient({
             title="No responses yet"
             description="Once people submit your form, their answers will show up here."
           />
+        ) : filtered.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-5 w-5" />}
+            title="No matches on this page"
+            description="Try a different keyword or clear the search to see all responses."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/40 text-xs text-muted-foreground">
-                  <th className="px-4 py-2.5 text-left font-medium">Submitted</th>
+                  <th className="px-4 py-2.5 text-left font-medium">
+                    Submitted
+                  </th>
+                  {collectEmail && (
+                    <th className="px-4 py-2.5 text-left font-medium">
+                      Email
+                    </th>
+                  )}
                   {previewFields.map((f) => (
                     <th
                       key={f.id}
@@ -159,7 +308,7 @@ export function ResponsesClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {responses.map((r) => (
+                {filtered.map((r) => (
                   <tr
                     key={r.id}
                     className="group transition-colors hover:bg-muted/40"
@@ -167,6 +316,17 @@ export function ResponsesClient({
                     <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground tabular-nums">
                       {formatDateTime(r.submittedAt)}
                     </td>
+                    {collectEmail && (
+                      <td className="whitespace-nowrap px-4 py-3 text-xs">
+                        {r.respondentEmail ? (
+                          <span className="font-mono">
+                            {truncate(r.respondentEmail, 32)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </td>
+                    )}
                     {previewFields.map((f) => (
                       <td key={f.id} className="px-4 py-3 align-top">
                         {renderAnswerPreview(r.answers[f.id])}
@@ -201,6 +361,43 @@ export function ResponsesClient({
         )}
       </div>
 
+      {/* Pagination */}
+      {total > pageSize && (
+        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            Showing{" "}
+            <span className="text-foreground">
+              {(page - 1) * pageSize + 1}–
+              {Math.min(page * pageSize, total)}
+            </span>{" "}
+            of <span className="text-foreground">{total.toLocaleString()}</span>
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              disabled={page <= 1 || loading}
+              onClick={() => fetchPage(page - 1, range)}
+              aria-label="Previous page"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="px-1 tabular-nums">
+              Page {page} / {totalPages}
+            </span>
+            <Button
+              size="icon-sm"
+              variant="ghost"
+              disabled={page >= totalPages || loading}
+              onClick={() => fetchPage(page + 1, range)}
+              aria-label="Next page"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Dialog open={!!open} onOpenChange={(o) => !o && setOpen(null)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -209,22 +406,40 @@ export function ResponsesClient({
           {open && (
             <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-2 scrollbar-thin">
               <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/40 p-3 text-xs">
-                <Meta label="Submitted" value={formatDateTime(open.submittedAt)} />
+                <Meta
+                  label="Submitted"
+                  value={formatDateTime(open.submittedAt)}
+                />
                 <Meta
                   label="Completion"
                   value={formatDuration(open.completionTimeSeconds ?? 0)}
                 />
+                {open.respondentEmail && (
+                  <Meta
+                    label="Email"
+                    value={open.respondentEmail}
+                    mono
+                  />
+                )}
                 {typeof open.metadata.device === "string" && (
                   <Meta
                     label="Device"
-                    value={(open.metadata.device as string) || "—"}
+                    value={open.metadata.device as string}
                     capitalize
                   />
                 )}
                 {typeof open.metadata.browser === "string" && (
                   <Meta
                     label="Browser"
-                    value={(open.metadata.browser as string) || "—"}
+                    value={open.metadata.browser as string}
+                  />
+                )}
+                {typeof (open.metadata.hidden as Record<string, string>)
+                  ?.utm_source === "string" && (
+                  <Meta
+                    label="UTM source"
+                    value={(open.metadata.hidden as Record<string, string>)
+                      .utm_source}
                   />
                 )}
               </div>
@@ -266,17 +481,25 @@ function Meta({
   label,
   value,
   capitalize,
+  mono,
 }: {
   label: string;
   value: string;
   capitalize?: boolean;
+  mono?: boolean;
 }) {
   return (
     <div>
       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
         {label}
       </div>
-      <div className={"mt-0.5 text-foreground" + (capitalize ? " capitalize" : "")}>
+      <div
+        className={
+          "mt-0.5 text-foreground" +
+          (capitalize ? " capitalize" : "") +
+          (mono ? " font-mono text-xs" : "")
+        }
+      >
         {value}
       </div>
     </div>

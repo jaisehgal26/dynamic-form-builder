@@ -21,6 +21,8 @@ interface FieldRendererProps {
   field: FormFieldDef;
   value: unknown;
   onChange: (value: unknown) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   error?: string | null;
   primaryColor?: string;
 }
@@ -29,6 +31,8 @@ export function FieldRenderer({
   field,
   value,
   onChange,
+  onFocus,
+  onBlur,
   error,
   primaryColor,
 }: FieldRendererProps) {
@@ -80,6 +84,8 @@ export function FieldRenderer({
         field={field}
         value={value}
         onChange={onChange}
+        onFocus={onFocus}
+        onBlur={onBlur}
         primaryColor={primaryColor}
       />
       {error && <p className="text-sm text-destructive">{error}</p>}
@@ -91,11 +97,15 @@ function FieldControl({
   field,
   value,
   onChange,
+  onFocus,
+  onBlur,
   primaryColor,
 }: {
   field: FormFieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   primaryColor?: string;
 }) {
   switch (field.type) {
@@ -115,6 +125,8 @@ function FieldControl({
           inputMode={field.type === "phone" ? "tel" : undefined}
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder={field.placeholder ?? ""}
           required={field.required}
           className="h-11 text-base"
@@ -127,6 +139,8 @@ function FieldControl({
           rows={4}
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder={field.placeholder ?? ""}
           required={field.required}
           className="text-base"
@@ -139,6 +153,8 @@ function FieldControl({
           type="number"
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           placeholder={field.placeholder ?? ""}
           required={field.required}
           className="h-11 text-base"
@@ -151,6 +167,8 @@ function FieldControl({
           type="date"
           value={(value as string) ?? ""}
           onChange={(e) => onChange(e.target.value)}
+          onFocus={onFocus}
+          onBlur={onBlur}
           required={field.required}
           className="h-11 text-base"
         />

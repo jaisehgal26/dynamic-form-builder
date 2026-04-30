@@ -45,4 +45,8 @@ export interface QuestionAnalytics {
     passives: number;
     detractors: number;
   };
+  /** Most recent text answers, up to 5. */
+  recentAnswers?: string[];
+  /** Top words across text answers. */
+  topWords?: { word: string; count: number }[];
 }

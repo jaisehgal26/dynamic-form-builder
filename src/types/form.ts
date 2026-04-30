@@ -64,7 +64,7 @@ export type LogicOperator =
   | "greater_than"
   | "less_than";
 
-export type LogicAction = "show" | "hide" | "go_to_step";
+export type LogicAction = "show" | "hide" | "go_to_step" | "end_form";
 
 export interface LogicRule {
   id: string;
@@ -92,11 +92,28 @@ export interface FormFieldDef {
 export interface FormSettings {
   multiStep: boolean;
   showProgressBar: boolean;
+  showQuestionNumbers: boolean;
   allowMultipleSubmissions: boolean;
   thankYouMessage: string;
   redirectUrl?: string;
   closedMessage?: string;
+  submitButtonText?: string;
 }
+
+/** Server-only access fields that affect public availability. */
+export interface FormAccess {
+  hasPassword: boolean;
+  expiresAt: number | null;
+  responseLimit: number | null;
+  collectEmail: boolean;
+}
+
+export type PublicAccessState =
+  | "ok"
+  | "not_found"
+  | "expired"
+  | "limit_reached"
+  | "password_required";
 
 export interface FormTheme {
   primaryColor: string;
@@ -115,8 +132,12 @@ export interface FormSchema {
 export const DEFAULT_SETTINGS: FormSettings = {
   multiStep: false,
   showProgressBar: true,
+  showQuestionNumbers: false,
   allowMultipleSubmissions: true,
   thankYouMessage: "Thanks for submitting! We've received your response.",
+  closedMessage:
+    "This form is no longer accepting responses. Please reach out if you need help.",
+  submitButtonText: "Submit",
 };
 
 export const DEFAULT_THEME: FormTheme = {
@@ -163,4 +184,5 @@ export interface PublicFormPayload {
   settings: FormSettings;
   theme: FormTheme;
   fields: FormFieldDef[];
+  collectEmail: boolean;
 }

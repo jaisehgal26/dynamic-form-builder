@@ -42,6 +42,13 @@ export const forms = sqliteTable(
     schemaJson: text("schema_json").notNull().default("{}"),
     themeJson: text("theme_json").notNull().default("{}"),
     settingsJson: text("settings_json").notNull().default("{}"),
+    // Access controls
+    passwordHash: text("password_hash"),
+    expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+    responseLimit: integer("response_limit"),
+    collectEmail: integer("collect_email", { mode: "boolean" })
+      .notNull()
+      .default(false),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .default(sql`(unixepoch() * 1000)`),
@@ -95,6 +102,7 @@ export const formResponses = sqliteTable(
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
     respondentId: text("respondent_id"),
+    respondentEmail: text("respondent_email"),
     answersJson: text("answers_json").notNull().default("{}"),
     metadataJson: text("metadata_json").notNull().default("{}"),
     startedAt: integer("started_at", { mode: "timestamp_ms" }),
@@ -117,9 +125,21 @@ export const formEvents = sqliteTable(
       .notNull()
       .references(() => forms.id, { onDelete: "cascade" }),
     eventType: text("event_type", {
-      enum: ["view", "start", "step_view", "submit"],
+      enum: [
+        "view",
+        "start",
+        "step_view",
+        "field_focus",
+        "field_blur",
+        "field_change",
+        "field_error",
+        "submit",
+        "drop_off",
+      ],
     }).notNull(),
     step: integer("step"),
+    fieldId: text("field_id"),
+    sessionId: text("session_id"),
     metadataJson: text("metadata_json").notNull().default("{}"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
@@ -128,6 +148,8 @@ export const formEvents = sqliteTable(
   (t) => ({
     formIdx: index("form_events_form_idx").on(t.formId),
     typeIdx: index("form_events_type_idx").on(t.eventType),
+    sessionIdx: index("form_events_session_idx").on(t.sessionId),
+    fieldIdx: index("form_events_field_idx").on(t.fieldId),
     createdIdx: index("form_events_created_idx").on(t.createdAt),
   }),
 );

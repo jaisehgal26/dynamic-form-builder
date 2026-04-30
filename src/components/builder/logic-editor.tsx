@@ -148,7 +148,7 @@ export function LogicEditor({ field }: { field: FormFieldDef }) {
               value={rule.action}
               onValueChange={(v) =>
                 updateRule(rule.id, {
-                  action: v as "show" | "hide" | "go_to_step",
+                  action: v as "show" | "hide" | "go_to_step" | "end_form",
                 })
               }
             >
@@ -161,6 +161,7 @@ export function LogicEditor({ field }: { field: FormFieldDef }) {
                 {settings.multiStep && (
                   <SelectItem value="go_to_step">go to step</SelectItem>
                 )}
+                <SelectItem value="end_form">end the form</SelectItem>
               </SelectContent>
             </Select>
             {rule.action === "go_to_step" && (

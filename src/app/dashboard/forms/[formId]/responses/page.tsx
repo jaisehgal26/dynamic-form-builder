@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { formResponses } from "@/db/schema";
 import { getSession } from "@/lib/auth";
@@ -12,6 +12,8 @@ import {
 import { safeJsonParse } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+
+const PAGE_SIZE = 50;
 
 export default async function ResponsesPage({
   params,
@@ -30,15 +32,22 @@ export default async function ResponsesPage({
   }
   const fields = await loadFormFields(formId);
 
+  const totalRows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(formResponses)
+    .where(eq(formResponses.formId, formId));
+  const total = Number(totalRows[0]?.count ?? 0);
+
   const rows = await db
     .select()
     .from(formResponses)
     .where(eq(formResponses.formId, formId))
     .orderBy(desc(formResponses.submittedAt))
-    .limit(500);
+    .limit(PAGE_SIZE);
 
   const responses = rows.map((r) => ({
     id: r.id,
+    respondentEmail: r.respondentEmail,
     answers: safeJsonParse<Record<string, unknown>>(r.answersJson, {}),
     metadata: safeJsonParse<Record<string, unknown>>(r.metadataJson, {}),
     startedAt: r.startedAt ? Number(r.startedAt) : null,
@@ -58,7 +67,10 @@ export default async function ResponsesPage({
         formId={formId}
         formTitle={form.title}
         fields={fields}
-        responses={responses}
+        collectEmail={!!form.collectEmail}
+        initialResponses={responses}
+        initialTotal={total}
+        pageSize={PAGE_SIZE}
       />
     </AppShell>
   );
