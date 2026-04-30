@@ -51,8 +51,10 @@ Earlier in this project, OneDrive's sync wiped most source files. To prevent tha
 ### 1. Install
 
 ```bash
-npm install --legacy-peer-deps
+npm install
 ```
+
+> An `.npmrc` in the repo sets `legacy-peer-deps=true` so Vercel and local installs don't fail on third-party Radix/dnd-kit peer deps that haven't yet bumped to React 19.
 
 ### 2. Configure environment
 
