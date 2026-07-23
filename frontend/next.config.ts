@@ -5,7 +5,14 @@ const nextConfig: NextConfig = {
     typedRoutes: false,
   },
   async rewrites() {
-    if (process.env.VERCEL) return [];
+    if (process.env.VERCEL) {
+      return [
+        {
+          source: "/api/:path*",
+          destination: "/api",
+        },
+      ];
+    }
     return [
       {
         source: "/api/:path*",
