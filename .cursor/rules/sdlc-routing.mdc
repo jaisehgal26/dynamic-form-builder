@@ -1,0 +1,55 @@
+---
+description: Route big/new work through SDLC agents; handle small changes directly
+alwaysApply: true
+---
+
+# SDLC vs Direct Work
+
+Classify every request before acting. Do **not** run the full agent pipeline for trivial work.
+
+## Small change → work directly
+
+Implement in the current chat. No handoff docs. No agent invocations.
+
+Examples:
+- Visual tweaks (spacing, colors, typography, copy)
+- Single-file bug fix with a clear cause
+- Lint/type fixes, rename, small refactor in one module
+- Wiring an existing component to an existing API
+- Docs or comment updates
+
+Keep diffs minimal. Follow `.cursor/rules/` and `docs/architecture.md`.
+
+## Big work → SDLC agent pipeline
+
+Use agents **in strict order** when the request is a new feature, major change, or unclear scope.
+
+Trigger when any of these apply:
+- Building something **new from scratch**
+- New API endpoints, models, or DB schema
+- New user flows spanning API and frontend (builder, dashboard, public forms)
+- Auth, permissions, or security-sensitive changes
+- FastAPI migration work or monorepo restructure
+- Cross-cutting or architectural changes
+- Requirements are vague or have meaningful open questions
+
+### Pipeline (do not skip stages)
+
+1. `/requirements-agent` → `docs/handoffs/active/01-requirements.md`
+2. `/scope-analyst` → `02-scope.md`
+3. `/impact-analyst` → `03-impact.md`
+4. `/implementer` → `04-implementation.md` + code
+5. `/test-agent` → `05-test-report.md` + tests
+6. `/ship-agent` → `06-ship-report.md`
+
+Rules for pipeline work:
+- **Do not write application code** until `03-impact.md` exists and is approved (unless user explicitly overrides).
+- **Do not skip stages** — complete each handoff before the next agent.
+- If unsure which stage you're on, invoke `/sdlc-orchestrator` first.
+- When shipped, archive `docs/handoffs/active/` → `docs/handoffs/archive/<feature-name>/`.
+
+## Ambiguous requests
+
+- Lean **direct** if the change is clearly local and low-risk.
+- Lean **pipeline** if it spans layers, needs design decisions, or the user says "new feature" / "from scratch" / "migrate to FastAPI".
+- If genuinely unclear, ask one short question — do not default to the full pipeline for obvious small tasks.

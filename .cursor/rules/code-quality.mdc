@@ -1,0 +1,43 @@
+---
+alwaysApply: true
+---
+# Code Quality
+
+## Naming
+
+- Names reveal intent: `calculateOrderTotal`, not `process` or `handleData`.
+- Booleans read as questions: `isActive`, `hasPermission`, `canCheckout`.
+- Avoid abbreviations unless universally known (`id`, `url`, `api`).
+
+## Functions & Files
+
+- Target ≤ 30 lines per function; split when longer.
+- ≤ 5 parameters; use an object/options type when more are needed.
+- One primary export per file when possible; colocate related helpers.
+
+## Errors & Validation
+
+- Fail fast at system boundaries (HTTP input, env, file I/O, external APIs).
+- Never swallow errors silently. Log context, then rethrow or return a typed error.
+- Validate untrusted input at the edge; trust internal code after validation.
+
+## Comments & Docs
+
+- Code should mostly explain itself. Comment *why*, not *what*.
+- No commented-out code. No TODO without a ticket or immediate follow-up.
+
+## Security & Config
+
+- No secrets, tokens, or credentials in source. Use env vars.
+- No hardcoded URLs, ports, or paths that differ per environment.
+
+## Tests
+
+- Test behavior, not implementation details.
+- Cover happy path, one edge case, and one failure path for new logic.
+- Do not add tests that only assert the obvious (getters, trivial wrappers).
+
+## Before Shipping
+
+- Run lint/typecheck for the touched stack.
+- Review your own diff: unrelated changes, debug logs, and scope creep.

@@ -1,0 +1,59 @@
+---
+description: JavaScript and TypeScript standards for FormForge frontend
+globs: **/*.{ts,tsx,js,jsx,mjs,cjs}
+alwaysApply: false
+---
+
+# JavaScript / TypeScript (FormForge)
+
+Applies to `src/` today and `frontend/` after the monorepo split.
+
+## Types
+
+- Prefer `strict` TypeScript. No `any` unless documented and unavoidable.
+- Use `unknown` + narrowing for external/API data.
+- Domain types live in `src/types/` (`form.ts`, `response.ts`).
+
+## Structure
+
+```typescript
+// ❌ BAD — mixed concerns
+async function submitResponse(formId: string, answers: Answers) {
+  const validated = validateAnswers(answers);
+  const res = await fetch(`/api/forms/${formId}/responses`, { method: "POST", body: JSON.stringify(validated) });
+  return res.json();
+}
+
+// ✅ GOOD — split validation, transport, orchestration
+function validateAnswers(answers: Answers): ValidatedAnswers { ... }
+async function createResponse(formId: string, payload: CreateResponsePayload): Promise<Response> { ... }
+async function submitResponse(formId: string, answers: Answers): Promise<Response> {
+  return createResponse(formId, { answers: validateAnswers(answers) });
+}
+```
+
+## Async & errors
+
+- Always `await` or handle promises — no floating promises.
+- Use typed errors at boundaries; avoid bare `throw "string"`.
+- Reuse `src/lib/api.ts` patterns for consistent API errors.
+
+## Modules
+
+- Named exports for shared modules.
+- Keep side effects out of module top-level except app entry/bootstrap.
+
+## React / Next.js
+
+- App Router: routes in `src/app/`, UI in `src/components/`, API client in `src/lib/`.
+- Server Components for data fetching; Client Components only for interactivity (`"use client"`).
+- **Interim:** call same-origin `/api/*` Route Handlers.
+- **Post-migration:** call FastAPI via `src/lib/` helpers (`API_URL` server-side) — no business logic in components.
+- Builder state: Zustand (`src/stores/use-builder-store.ts`). Extract hooks when logic is reused or a component exceeds ~80 lines.
+- `NEXT_PUBLIC_*` for browser-safe config only. Secrets stay server-side (`AUTH_SECRET`, `API_URL`).
+
+## Style
+
+- Prefer `const`; use `let` only when reassigned.
+- Early returns over nested `if/else`.
+- Destructure at the top of functions when it improves readability.

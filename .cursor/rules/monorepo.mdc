@@ -1,0 +1,37 @@
+---
+description: FormForge monorepo layout, migration state, and stack boundaries
+alwaysApply: true
+---
+
+# FormForge Monorepo
+
+Form builder SaaS. **Migrating** from Next.js Route Handlers to FastAPI + Next.js monorepo.
+
+## Layout
+
+| Path | Purpose | Status |
+|------|---------|--------|
+| `src/` | Next.js UI + interim APIs | **Current** |
+| `frontend/` | Next.js frontend | **Target** (split from `src/`) |
+| `backend/` | FastAPI REST API | **Target** (replaces `src/app/api/`) |
+| `docs/` | Architecture, SDLC handoffs | Active |
+| `.cursor/agents/` | SDLC pipeline agents | Active |
+
+Read `docs/architecture.md` before structural or cross-layer changes.
+
+## Stack boundaries
+
+- **New API work** → `backend/` when it exists; otherwise `src/app/api/` for fixes only
+- **UI / builder / dashboard** → `src/` (later `frontend/`)
+- **Shared types** → colocate per layer; avoid duplicating business logic in the web app
+- **DB** → `src/db/` today; moves with FastAPI migration
+
+## API domains
+
+Auth, forms CRUD, fields, schema, responses, analytics, public forms — see `docs/architecture.md` migration table and root `README.md` API Reference.
+
+## Commands
+
+- Web (now): `npm run dev`, `npm run build`, `npm run lint`, `npm run typecheck` from repo root
+- DB: `npm run db:migrate`, `npm run db:seed`
+- API tests (future): `pytest` from `backend/`

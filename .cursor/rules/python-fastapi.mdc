@@ -1,0 +1,65 @@
+---
+description: Python and FastAPI backend standards for FormForge
+globs: **/*.py
+alwaysApply: false
+---
+
+# Python / FastAPI (FormForge)
+
+Applies to `backend/` when present. New endpoints belong here — not in `src/app/api/`.
+
+## Structure (`backend/`)
+
+- **Endpoint** — `app/api/v1/endpoints/` — HTTP only: parse input, call service, return response.
+- **Service** — `app/services/` — business logic; no HTTP or ORM details.
+- **Repository** — `app/repositories/` — database access; no business rules.
+- **Schema** — `app/schemas/` — Pydantic request/response validation.
+- **Model** — `app/models/` — ORM entities; no API serialization logic.
+- **Core** — `app/core/` — config, dependencies, security, DB session.
+
+Keep this flow: `endpoint → service → repository`.
+
+Mirror existing Next API domains: auth, forms, fields, responses, analytics, public forms (see `docs/architecture.md`).
+
+## Simplicity
+
+```python
+# ❌ BAD — logic in the router
+@router.post("/forms/{form_id}/responses")
+def create_response(form_id: str, data: ResponseCreate, db: Session = Depends(get_db)):
+  if not form_is_published(db, form_id):
+    raise HTTPException(404, "Form not found")
+  ...
+
+# ✅ GOOD — thin router, logic in service
+@router.post("/forms/{form_id}/responses", response_model=ResponseRead)
+def create_response(
+  form_id: str,
+  data: ResponseCreate,
+  service: ResponseService = Depends(get_response_service),
+):
+  return service.create_response(form_id, data)
+```
+
+## Python style
+
+- Type-hint all public functions. Use `|` unions (3.10+) or `Optional`.
+- Prefer Pydantic models over raw dicts at boundaries.
+- Explicit exceptions in services; map to HTTP status in routers only.
+- f-strings for formatting; pathlib for paths.
+
+## FastAPI
+
+- One router per domain under `app/api/v1/endpoints/` (e.g. `auth`, `forms`, `public`).
+- Use `Depends()` for auth, DB session, and service injection.
+- `response_model` on routes for consistent API output.
+- Settings via `pydantic-settings`; never scatter `os.environ` reads.
+
+## Async
+
+- Use `async def` only when awaiting I/O (DB, HTTP). CPU-bound work stays sync or uses a worker.
+
+## Imports
+
+- Standard library → third party → local app imports.
+- No wildcard imports (`from x import *`).

@@ -1,0 +1,49 @@
+---
+description: SOLID, DRY, KISS — small functions, split large files, group props into objects
+alwaysApply: true
+---
+
+# Coding Principles (FormForge)
+
+Write the simplest code that solves the problem. Prefer clarity over cleverness.
+
+## Simplicity first
+
+- One function = one job. If you cannot name it in a short verb phrase, split it.
+- Target ≤ 30 lines per function; extract helpers when longer.
+- If a file exceeds ~200 lines, split by responsibility (hooks, utils, subcomponents, types, service modules).
+- Prefer flat code over deep nesting (max 2–3 levels; use early returns).
+- Delete dead code, unused imports, and speculative abstractions.
+
+## SOLID (practical)
+
+- **S** — One reason to change per module/class/function.
+- **O** — Extend via new code, not by editing stable code paths.
+- **L** — Subtypes honor the contract of what they replace.
+- **I** — Small, focused interfaces; no unused methods.
+- **D** — Depend on abstractions at boundaries (API, DB, external services).
+
+## KISS & DRY
+
+- No framework for a one-off. No helper for a single use.
+- Extract duplication only when the *meaning* is the same — wait for the second real use case.
+- Make it work → make it clear → make it reusable (in that order).
+
+## Props & parameters
+
+- More than 4–5 props or parameters → group into a typed object.
+
+```tsx
+// ❌ BAD
+function FieldCard(id, label, type, required, onEdit, onDelete, isSelected) {}
+
+// ✅ GOOD
+type FieldCardProps = { field: FormField; selected: boolean; actions: FieldActions };
+function FieldCard({ field, selected, actions }: FieldCardProps) {}
+```
+
+## Layer rules
+
+- **Frontend** (`src/` → `frontend/`): UI only — call APIs via `src/lib/`, no business rules in components.
+- **Backend** (`src/app/api/` → `backend/`): thin HTTP layer; logic in services / `src/lib/` until migrated.
+- Smallest diff that solves the task. Reuse existing utilities and conventions.
