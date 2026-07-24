@@ -99,6 +99,18 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-6px)" },
+        },
+        marquee: {
+          "0%": { transform: "translateX(0)" },
+          "100%": { transform: "translateX(-50%)" },
+        },
+        "feature-progress": {
+          from: { width: "0%" },
+          to: { width: "100%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -107,6 +119,9 @@ const config: Config = {
         "fade-in-fast": "fade-in-fast 150ms cubic-bezier(0.4, 0, 0.2, 1)",
         "scale-in": "scale-in 200ms cubic-bezier(0.4, 0, 0.2, 1)",
         "slide-up": "slide-up 240ms cubic-bezier(0.4, 0, 0.2, 1)",
+        float: "float 6s ease-in-out infinite",
+        marquee: "marquee 32s linear infinite",
+        "feature-progress": "feature-progress linear forwards",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "-apple-system", "sans-serif"],

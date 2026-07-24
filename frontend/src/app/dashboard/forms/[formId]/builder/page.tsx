@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AppShell } from "@/components/layout/app-shell";
 import { BuilderShell } from "@/components/builder/builder-shell";
 import { serverFetchJson } from "@/lib/server-api";
 import type { FormFieldDef, FormSettings, FormTheme } from "@/types/form";
@@ -42,28 +41,21 @@ export default async function BuilderPage({
   const form = data.form;
 
   return (
-    <AppShell
-      breadcrumb={[
-        { href: "/dashboard", label: "Forms" },
-        { label: form.title },
-      ]}
-    >
-      <BuilderShell
-        formId={form.id}
-        title={form.title}
-        description={form.description ?? ""}
-        slug={form.slug}
-        status={form.status}
-        initialFields={form.fields}
-        initialSettings={form.settings}
-        initialTheme={form.theme}
-        initialAccess={{
-          hasPassword: form.hasPassword,
-          expiresAt: form.expiresAt,
-          responseLimit: form.responseLimit,
-          collectEmail: form.collectEmail,
-        }}
-      />
-    </AppShell>
+    <BuilderShell
+      formId={form.id}
+      title={form.title}
+      description={form.description ?? ""}
+      slug={form.slug}
+      status={form.status}
+      initialFields={form.fields}
+      initialSettings={form.settings}
+      initialTheme={form.theme}
+      initialAccess={{
+        hasPassword: form.hasPassword,
+        expiresAt: form.expiresAt,
+        responseLimit: form.responseLimit,
+        collectEmail: form.collectEmail,
+      }}
+    />
   );
 }

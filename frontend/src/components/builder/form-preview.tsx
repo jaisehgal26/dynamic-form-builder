@@ -5,7 +5,11 @@ import { useBuilderStore } from "@/stores/use-builder-store";
 import { groupFieldsByStep } from "@/lib/form-helpers";
 import { PublicFormRenderer } from "@/components/public-form/public-form-renderer";
 
-export function FormPreview() {
+export function FormPreview({
+  inheritSurface = false,
+}: {
+  inheritSurface?: boolean;
+}) {
   const title = useBuilderStore((s) => s.title);
   const description = useBuilderStore((s) => s.description);
   const fields = useBuilderStore((s) => s.fields);
@@ -29,6 +33,7 @@ export function FormPreview() {
         <div className="mx-auto max-w-2xl px-4 py-10">
           <PublicFormRenderer
             preview
+            inheritSurface={inheritSurface}
             form={{
               id: "preview",
               slug,

@@ -4,13 +4,13 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", ".env.local"),
         extra="ignore",
         env_file_encoding="utf-8",
     )
 
     database_url: str = Field(
-        default="postgresql://formforge:formforge@localhost:5432/formforge",
+        default="postgresql://formforge:formforge@127.0.0.1:5433/formforge",
         validation_alias="DATABASE_URL",
     )
     auth_secret: str = Field(default="dev-secret-min-16-chars", validation_alias="AUTH_SECRET")

@@ -1,20 +1,22 @@
 import type { Metadata } from "next";
+import { createPageMetadata } from "@/lib/seo";
+import { AuthFormShell } from "@/components/auth/auth-form-shell";
 import SignupForm from "./signup-form";
 
-export const metadata: Metadata = { title: "Sign up" };
+export const metadata: Metadata = createPageMetadata({
+  title: "Sign up free",
+  description:
+    "Create your free FormForge account. Build dynamic forms with drag-and-drop, conditional logic, and analytics in minutes.",
+  path: "/signup",
+});
 
 export default function SignupPage() {
   return (
-    <div>
-      <div className="mb-8 space-y-1.5">
-        <h1 className="text-2xl font-semibold tracking-tightish">
-          Create your account
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Build your first form in under a minute.
-        </p>
-      </div>
+    <AuthFormShell
+      title="Create your account"
+      description="Build your first form in under a minute."
+    >
       <SignupForm />
-    </div>
+    </AuthFormShell>
   );
 }

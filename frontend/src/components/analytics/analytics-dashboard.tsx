@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   BarChart3,
   Check,
   Clock,
@@ -95,12 +94,6 @@ export function AnalyticsDashboard({
     <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-3 w-3" /> Back to forms
-          </Link>
           <h1 className="text-2xl font-semibold tracking-tightish">
             {formTitle}
           </h1>

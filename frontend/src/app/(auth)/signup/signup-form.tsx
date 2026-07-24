@@ -3,8 +3,8 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,9 +73,7 @@ export default function SignupForm() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="new-password"
         />
-        <p className="text-xs text-muted-foreground">
-          At least 8 characters.
-        </p>
+        <p className="text-xs text-muted-foreground">At least 8 characters.</p>
       </div>
       <Button type="submit" className="w-full" disabled={loading}>
         {loading && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}

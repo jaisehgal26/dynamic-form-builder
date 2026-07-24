@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AppShell } from "@/components/layout/app-shell";
 import { ResponsesClient } from "@/components/dashboard/responses-client";
 import { serverFetchJson } from "@/lib/server-api";
 import type { FormFieldDef } from "@/types/form";
@@ -41,23 +40,15 @@ export default async function ResponsesPage({
     }>(`/api/forms/${formId}/responses?page=1`);
 
     return (
-      <AppShell
-        breadcrumb={[
-          { href: "/dashboard", label: "Forms" },
-          { href: `/dashboard/forms/${formId}/builder`, label: form.title },
-          { label: "Responses" },
-        ]}
-      >
-        <ResponsesClient
-          formId={formId}
-          formTitle={form.title}
-          fields={form.fields}
-          collectEmail={form.collectEmail}
-          initialResponses={responses}
-          initialTotal={total}
-          pageSize={PAGE_SIZE}
-        />
-      </AppShell>
+      <ResponsesClient
+        formId={formId}
+        formTitle={form.title}
+        fields={form.fields}
+        collectEmail={form.collectEmail}
+        initialResponses={responses}
+        initialTotal={total}
+        pageSize={PAGE_SIZE}
+      />
     );
   } catch {
     notFound();

@@ -22,6 +22,8 @@ import { cn } from "@/lib/utils";
 interface PublicFormRendererProps {
   form: PublicFormPayload;
   preview?: boolean;
+  /** Use app card surface (dark/light) instead of form theme background. */
+  inheritSurface?: boolean;
 }
 
 const HIDDEN_PARAMS = [
@@ -97,7 +99,7 @@ function collectHidden(params: URLSearchParams): Record<string, string> {
   return out;
 }
 
-export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
+export function PublicFormRenderer({ form, preview, inheritSurface }: PublicFormRendererProps) {
   const params = React.useMemo<URLSearchParams>(() => {
     if (typeof window === "undefined") return new URLSearchParams();
     return new URLSearchParams(window.location.search);
@@ -361,7 +363,11 @@ export function PublicFormRenderer({ form, preview }: PublicFormRendererProps) {
   return (
     <div
       className="rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-9"
-      style={{ backgroundColor: form.theme.backgroundColor }}
+      style={
+        inheritSurface
+          ? undefined
+          : { backgroundColor: form.theme.backgroundColor }
+      }
     >
       {useMultiStep && form.settings.showProgressBar && (
         <div className="mb-6 space-y-1.5">

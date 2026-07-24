@@ -1,6 +1,5 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AppShell } from "@/components/layout/app-shell";
 import { AnalyticsDashboard } from "@/components/analytics/analytics-dashboard";
 import { serverFetchJson } from "@/lib/server-api";
 import type { AnalyticsSummary } from "@/types/response";
@@ -31,21 +30,13 @@ export default async function AnalyticsPage({
     ]);
 
     return (
-      <AppShell
-        breadcrumb={[
-          { href: "/dashboard", label: "Forms" },
-          { href: `/dashboard/forms/${formId}/builder`, label: form.title },
-          { label: "Analytics" },
-        ]}
-      >
-        <AnalyticsDashboard
-          formId={formId}
-          formTitle={form.title}
-          initialAnalytics={analytics}
-          initialFunnel={funnel}
-          initialInsights={insights}
-        />
-      </AppShell>
+      <AnalyticsDashboard
+        formId={formId}
+        formTitle={form.title}
+        initialAnalytics={analytics}
+        initialFunnel={funnel}
+        initialInsights={insights}
+      />
     );
   } catch {
     notFound();

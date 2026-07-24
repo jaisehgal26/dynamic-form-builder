@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
-import { AppShell } from "@/components/layout/app-shell";
-import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { DashboardHome } from "@/components/dashboard/dashboard-home";
 import { serverFetchJson } from "@/lib/server-api";
 
 export const dynamic = "force-dynamic";
@@ -12,14 +11,6 @@ export default async function DashboardPage() {
 
   const { forms } = await serverFetchJson<{
     forms: Array<{
-      id: string;
-      title: string;
-      description: string | null;
-      slug: string;
-      status: "draft" | "published" | "archived";
-      createdAt: number;
-      updatedAt: number;
-      publishedAt: number | null;
       responseCount: number;
       viewCount: number;
     }>;
@@ -33,11 +24,9 @@ export default async function DashboardPage() {
     : 0;
 
   return (
-    <AppShell title="Dashboard">
-      <DashboardClient
-        initialForms={forms}
-        stats={{ totalForms, totalResponses, totalViews, conversionRate }}
-      />
-    </AppShell>
+    <DashboardHome
+      stats={{ totalForms, totalResponses, totalViews, conversionRate }}
+      hasForms={totalForms > 0}
+    />
   );
 }

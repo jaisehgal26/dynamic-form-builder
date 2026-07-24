@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   BarChart3,
@@ -14,17 +15,18 @@ import {
   FileJson,
   Inbox,
   Loader2,
-  MoreHorizontal,
   Plus,
   Redo2,
   Undo2,
   Upload,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useBuilderStore } from "@/stores/use-builder-store";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,7 +67,7 @@ import type {
   FormSettings,
   FormTheme,
 } from "@/types/form";
-import { formatRelative } from "@/lib/utils";
+import { cn, formatRelative } from "@/lib/utils";
 
 interface BuilderShellProps {
   formId: string;
@@ -301,192 +303,200 @@ export function BuilderShell(props: BuilderShellProps) {
   const publicUrl = origin ? `${origin}/f/${slug}` : `/f/${slug}`;
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem)] flex-col bg-background">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-background/85 px-3 py-2 backdrop-blur sm:px-4">
-        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="h-8 min-w-0 border-transparent bg-transparent px-2 text-sm font-medium tracking-tightish shadow-none focus-visible:border-input focus-visible:bg-background"
-            placeholder="Untitled form"
-          />
-          <AutosaveIndicator
-            status={autosaveStatus}
-            lastSavedAt={lastSavedAt}
-            isDirty={isDirty}
-          />
-        </div>
-
-        <div className="flex shrink-0 items-center gap-0.5">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={undo}
-                disabled={past.length === 0}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="Undo"
-              >
-                <Undo2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Undo (⌘Z)</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                onClick={redo}
-                disabled={future.length === 0}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="Redo"
-              >
-                <Redo2 className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Redo (⌘⇧Z)</TooltipContent>
-          </Tooltip>
-          <span className="mx-1 hidden h-4 w-px bg-border/70 lg:block" />
-
-          {/* Desktop-only quick links */}
-          <Button
-            size="sm"
-            variant="ghost"
-            asChild
-            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-          >
-            <a href={`/dashboard/forms/${props.formId}/responses`}>
-              <Inbox className="h-3.5 w-3.5" />
-              Responses
-            </a>
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            asChild
-            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-          >
-            <a href={`/dashboard/forms/${props.formId}/analytics`}>
-              <BarChart3 className="h-3.5 w-3.5" />
-              Analytics
-            </a>
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setSchemaOpen(true)}
-            className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-          >
-            <FileJson className="h-3.5 w-3.5" />
-            Schema
-          </Button>
-          {status === "published" && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setEmbedOpen(true)}
-              className="hidden text-muted-foreground hover:text-foreground lg:inline-flex"
-            >
-              <Code2 className="h-3.5 w-3.5" />
-              Embed
-            </Button>
-          )}
-
-          {/* Overflow menu for the same actions on `<lg` */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-foreground lg:hidden"
-                aria-label="More"
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" sideOffset={8} className="w-52">
-              <DropdownMenuItem asChild>
-                <a
-                  href={`/dashboard/forms/${props.formId}/responses`}
-                  className="flex items-center gap-2"
-                >
-                  <Inbox className="h-3.5 w-3.5" />
-                  Responses
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <a
-                  href={`/dashboard/forms/${props.formId}/analytics`}
-                  className="flex items-center gap-2"
-                >
-                  <BarChart3 className="h-3.5 w-3.5" />
-                  Analytics
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setSchemaOpen(true)}>
-                <FileJson className="h-3.5 w-3.5" />
-                Schema
-              </DropdownMenuItem>
-              {status === "published" && (
-                <DropdownMenuItem onClick={() => setEmbedOpen(true)}>
-                  <Code2 className="h-3.5 w-3.5" />
-                  Embed
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          {status === "published" && (
-            <Button
-              size="sm"
-              variant="subtle"
-              onClick={() => setShareOpen(true)}
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Share</span>
-            </Button>
-          )}
-          {status === "published" ? (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleUnpublish}
-              disabled={publishing}
-            >
-              {publishing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <EyeOff className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">Unpublish</span>
-            </Button>
-          ) : (
-            <Button size="sm" onClick={handlePublish} disabled={publishing}>
-              {publishing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Eye className="h-3.5 w-3.5" />
-              )}
-              <span className="hidden sm:inline">Publish</span>
-            </Button>
-          )}
-        </div>
-      </div>
-
+    <div className="flex h-full min-h-0 flex-col bg-background">
       <Tabs
         defaultValue="design"
         className="flex flex-1 flex-col overflow-hidden"
       >
-        <div className="border-b border-border/60 bg-background px-3 sm:px-4">
-          <TabsList className="my-1.5 bg-muted/50">
-            <TabsTrigger value="design">Design</TabsTrigger>
-            <TabsTrigger value="preview">Preview</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-          </TabsList>
+        <div
+          className={cn(
+            "flex h-11 items-center gap-2 border-b border-border/60 bg-background px-3 sm:gap-3 sm:px-4",
+            "lg:grid lg:grid-cols-[240px_1fr] lg:items-center lg:gap-0 lg:px-0",
+          )}
+        >
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-1.5",
+              "lg:h-full lg:border-r lg:border-border/60 lg:px-3",
+            )}
+          >
+            <Input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="h-8 min-w-0 w-[7.5rem] max-w-[10rem] border-0 bg-transparent px-0 text-sm font-medium tracking-tightish shadow-none focus-visible:ring-0 sm:w-auto sm:max-w-[12rem] lg:max-w-none lg:flex-1"
+              placeholder="Untitled form"
+            />
+            <Badge
+              variant={status === "published" ? "success" : "secondary"}
+              className="hidden shrink-0 px-1.5 py-0 text-[10px] uppercase tracking-wide sm:inline-flex"
+            >
+              {status === "published" ? "Live" : "Draft"}
+            </Badge>
+            <AutosaveIndicator
+              status={autosaveStatus}
+              lastSavedAt={lastSavedAt}
+              isDirty={isDirty}
+              compact
+            />
+          </div>
+
+          <div className="flex min-w-0 flex-1 items-center gap-2 lg:px-3">
+            <div
+              className="hidden h-5 w-px shrink-0 bg-border/70 sm:block lg:hidden"
+              aria-hidden
+            />
+
+            <TabsList className="h-8 shrink-0 rounded-lg bg-muted/60 p-0.5">
+              <TabsTrigger value="design" className="h-7 rounded-md px-3 text-xs">
+                Design
+              </TabsTrigger>
+              <TabsTrigger value="preview" className="h-7 rounded-md px-3 text-xs">
+                Preview
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="h-7 rounded-md px-3 text-xs">
+                Settings
+              </TabsTrigger>
+            </TabsList>
+
+            <div className="flex-1" />
+
+            <div className="flex shrink-0 items-center gap-0.5">
+            <div className="mr-0.5 flex items-center rounded-md border border-border/50 p-0.5">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={undo}
+                    disabled={past.length === 0}
+                    className="h-7 w-7 text-muted-foreground"
+                    aria-label="Undo"
+                  >
+                    <Undo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Undo</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    onClick={redo}
+                    disabled={future.length === 0}
+                    className="h-7 w-7 text-muted-foreground"
+                    aria-label="Redo"
+                  >
+                    <Redo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Redo</TooltipContent>
+              </Tooltip>
+            </div>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  asChild
+                  className="hidden h-8 w-8 text-muted-foreground md:inline-flex"
+                >
+                  <Link href={`/dashboard/forms/${props.formId}/responses`} aria-label="Responses">
+                    <Inbox className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Responses</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  asChild
+                  className="hidden h-8 w-8 text-muted-foreground md:inline-flex"
+                >
+                  <Link href={`/dashboard/forms/${props.formId}/analytics`} aria-label="Analytics">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Analytics</TooltipContent>
+            </Tooltip>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 gap-1.5 px-2 text-muted-foreground"
+                  aria-label="Tools"
+                >
+                  <Wrench className="h-3.5 w-3.5" />
+                  <span className="hidden text-xs lg:inline">Tools</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" sideOffset={8} className="w-48">
+                <DropdownMenuItem asChild className="gap-2 md:hidden">
+                  <Link href={`/dashboard/forms/${props.formId}/responses`}>
+                    <Inbox className="h-3.5 w-3.5" />
+                    Responses
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild className="gap-2 md:hidden">
+                  <Link href={`/dashboard/forms/${props.formId}/analytics`}>
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    Analytics
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="md:hidden" />
+                <DropdownMenuItem onClick={() => setSchemaOpen(true)} className="gap-2">
+                  <FileJson className="h-3.5 w-3.5" />
+                  Schema
+                </DropdownMenuItem>
+                {status === "published" && (
+                  <>
+                    <DropdownMenuItem onClick={() => setEmbedOpen(true)} className="gap-2">
+                      <Code2 className="h-3.5 w-3.5" />
+                      Embed
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setShareOpen(true)} className="gap-2">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Share link
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {status === "published" ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8"
+                onClick={handleUnpublish}
+                disabled={publishing}
+              >
+                {publishing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <EyeOff className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Unpublish</span>
+              </Button>
+            ) : (
+              <Button size="sm" className="h-8" onClick={handlePublish} disabled={publishing}>
+                {publishing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Eye className="h-3.5 w-3.5" />
+                )}
+                <span className="hidden sm:inline">Publish</span>
+              </Button>
+            )}
+            </div>
+          </div>
         </div>
 
         <TabsContent
@@ -626,11 +636,43 @@ function AutosaveIndicator({
   status,
   lastSavedAt,
   isDirty,
+  compact = false,
 }: {
   status: "idle" | "saving" | "saved" | "error";
   lastSavedAt: number | null;
   isDirty: boolean;
+  compact?: boolean;
 }) {
+  if (compact) {
+    let icon: React.ReactNode = null;
+    let label = "All changes saved";
+
+    if (status === "saving") {
+      icon = <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />;
+      label = "Saving…";
+    } else if (status === "error") {
+      icon = <CloudOff className="h-3 w-3 text-destructive" />;
+      label = "Save failed";
+    } else if (isDirty) {
+      icon = <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />;
+      label = "Unsaved changes";
+    } else if (lastSavedAt) {
+      icon = <Check className="h-3 w-3 text-emerald-500" />;
+      label = `Saved ${formatRelative(lastSavedAt)}`;
+    }
+
+    if (!icon) return null;
+
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center">{icon}</span>
+        </TooltipTrigger>
+        <TooltipContent>{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
   if (status === "saving") {
     return (
       <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
